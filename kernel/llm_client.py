@@ -2,10 +2,13 @@ import asyncio
 import json
 import logging
 from typing import Dict, List, Optional
+
 from kernel.utils import validate_json, hash_payload, load_cache, save_cache
 from kernel.provider_router import ProviderRouter, ROLE_DEFAULTS
 from kernel.token_policy import policy_controller
-from kernel.config import TEMPERATURES, MAX_TOKENS
+from kernel.config import TEMPERATURES, MAX_TOKENS, PRODUCTION
+from kernel.provider_quotas import circuit_breaker_status, get_healthy_providers
+from kernel.state_store import log_audit
 
 logger = logging.getLogger("antimatter.client")
 
@@ -29,25 +32,46 @@ async def call_llm(role: str, system: str, user: str) -> Dict:
     cache_key = hash_payload({"role": role, "system": system, "user": user})
     cache = load_cache()
     if cache_key in cache:
+        log_audit(role, "cache_hit", cache_key, cache_key, "ok")
         return cache[cache_key]
 
     router = _get_router()
     temperature, max_tokens = _role_config(role)
 
-    policy_controller.validate_keys_configured()
-    policy_controller.log_dispatch(role, max_tokens)
+    # Circuit breaker check — if all providers blocked, use cache-only mode
+    circuit = circuit_breaker_status()
+    if circuit.get("all_blocked"):
+        if cache_key in cache:
+            log_audit(role, "circuit_breaker_cache", cache_key, cache_key, "ok")
+            return cache[cache_key]
+        from kernel.config import PRODUCTION
+        log_audit(role, "circuit_breaker_blocked", cache_key, "", "blocked")
+        raise RuntimeError(
+            f"LOW POWER MODE: All providers blocked (daily quota exhausted). "
+            f"Request for role='{role}' cannot be served. "
+            f"Try again after midnight UTC or configure a low-power fallback model."
+        )
 
     exclude_providers = []
 
     while True:
+        if all(p.name in exclude_providers for p in router.providers):
+            circuit = circuit_breaker_status()
+            if circuit.get("all_blocked"):
+                raise RuntimeError(
+                    f"Low-power mode: all providers exhausted. "
+                    f"Try again after midnight UTC reset."
+                )
+            raise RuntimeError(f"All providers failed for role: {role}")
+
         try:
             provider_cfg, model_id, client = router.get_best_provider(role, exclude_names=exclude_providers)
         except Exception as e:
-            raise RuntimeError(f"All providers failed or exhausted for role: {role}. Error: {e}")
+            raise RuntimeError(f"All providers failed for role: {role}. Error: {e}")
 
         try:
-            logger.info(f"Calling provider '{provider_cfg.name}' for role '{role}' using model '{model_id}'")
-            
+            logger.info(f"Calling {provider_cfg.name} for role {role} model {model_id}")
+
             response = await client.chat.completions.create(
                 model=model_id,
                 messages=[
@@ -57,22 +81,27 @@ async def call_llm(role: str, system: str, user: str) -> Dict:
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
-            
+
             content = response.choices[0].message.content
             parsed = validate_json(content)
-            
+
             router.mark_success(provider_cfg)
-            
+
             tokens_used = 1000
             if hasattr(response, "usage") and response.usage:
                 tokens_used = response.usage.total_tokens
-                
+
             policy_controller.log_completion(provider_cfg.name, tokens_used, role)
-            
+            log_audit(role, "llm_call", cache_key, hash_payload(parsed), "ok", {
+                "provider": provider_cfg.name,
+                "model": model_id,
+                "tokens": tokens_used,
+            })
+
             cache[cache_key] = parsed
             save_cache(cache)
             return parsed
-            
+
         except Exception as e:
             logger.warning(f"Provider {provider_cfg.name} failed for role {role}: {e}")
             router.mark_failure(provider_cfg)

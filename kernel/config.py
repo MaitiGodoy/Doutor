@@ -9,6 +9,8 @@ load_dotenv(dotenv_path=_env_path)
 OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY")
 GROQ_KEY = os.getenv("GROQ_API_KEY")
 HF_KEY = os.getenv("HUGGINGFACE_API_KEY")
+FIREWORKS_KEY = os.getenv("FIREWORKS_API_KEY")
+TOGETHER_KEY = os.getenv("TOGETHER_API_KEY")
 
 # Twilio & Notifications
 TWILIO_SID = os.getenv("TWILIO_SID")
@@ -16,11 +18,14 @@ TWILIO_TOKEN = os.getenv("TWILIO_TOKEN")
 TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "+14155238886")
 USER_PHONE = os.getenv("USER_PHONE")
 
+# Webhook Secret
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "change-me-in-production")
+
 # Provider URLs
 PROVIDERS = {
     "openrouter": {"base": "https://openrouter.ai/api/v1", "headers": {"Authorization": f"Bearer {OPENROUTER_KEY}"}},
     "groq": {"base": "https://api.groq.com/openai/v1", "headers": {"Authorization": f"Bearer {GROQ_KEY}"}},
-    "huggingface": {"base": "https://api-inference.huggingface.co/v1", "headers": {"Authorization": f"Bearer {HF_KEY}"}}
+    "huggingface": {"base": "https://api-inference.huggingface.co/v1", "headers": {"Authorization": f"Bearer {HF_KEY}"}},
 }
 
 # Model Mapping (Free Tier Optimized)
@@ -58,12 +63,14 @@ MODELS = {
 TEMPERATURES = {
     "planner_a": 0.6, "planner_b": 0.7, "coder": 0.2, "auditor": 0.3,
     "reviewer_e": 0.5, "reviewer_f": 0.5, "tester": 0.4, "creator": 0.2,
-    "optimizer": 0.4, "strategist_a": 0.6, "strategist_b": 0.7, "producer": 0.2
+    "optimizer": 0.4, "strategist_a": 0.6, "strategist_b": 0.7, "producer": 0.2,
+    "the_lateral": 0.75
 }
 MAX_TOKENS = {
     "planner_a": 2048, "planner_b": 2048, "coder": 4096, "auditor": 2048,
     "reviewer_e": 2048, "reviewer_f": 2048, "tester": 1536, "creator": 4096,
-    "optimizer": 1536, "strategist_a": 2048, "strategist_b": 2048, "producer": 4096
+    "optimizer": 1536, "strategist_a": 2048, "strategist_b": 2048, "producer": 4096,
+    "the_lateral": 4096
 }
 
 # Financial Guardrails (Hardcoded)
@@ -87,4 +94,17 @@ OPTIMIZATION = {
     "blind_review": True,
     "atomic_blocks": True,
     "max_retries": 3
+}
+
+# Production Hardening Config
+PRODUCTION = {
+    "max_daily_run_hours": float(os.getenv("MAX_DAILY_RUN_HOURS", "2")),
+    "cron_schedule": os.getenv("CRON_SCHEDULE", "0 8 * * *"),
+    "webhook_secret": os.getenv("WEBHOOK_SECRET", "change-me"),
+    "sandbox_timeout_sec": int(os.getenv("SANDBOX_TIMEOUT_SEC", "60")),
+    "sandbox_memory_mb": int(os.getenv("SANDBOX_MEMORY_MB", "256")),
+    "snapshot_before_run": os.getenv("SNAPSHOT_BEFORE_RUN", "true").lower() == "true",
+    "generate_dashboard": os.getenv("GENERATE_DASHBOARD", "true").lower() == "true",
+    "daily_backup_enabled": os.getenv("DAILY_BACKUP_ENABLED", "true").lower() == "true",
+    "low_power_fallback_model": os.getenv("LOW_POWER_FALLBACK_MODEL", "microsoft/phi-3.5-mini-instruct"),
 }

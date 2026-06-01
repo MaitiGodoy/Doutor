@@ -1,0 +1,1 @@
+{"role": "the_inspector", "model": "gemma-2-9b", "temperature": 0.2, "max_tokens": 3072, "system_prompt_file": "", "trigger_conditions": ["audit", "review"], "auto_approve": false, "requires_governance": false, "responsibility": "Auditor + Advocate + Sentinel — edge cases, policy compliance, brand safety"}

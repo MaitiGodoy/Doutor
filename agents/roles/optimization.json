@@ -1,0 +1,1 @@
+{"role": "the_scaler", "model": "", "temperature": 0.5, "max_tokens": 3072, "system_prompt_file": "", "trigger_conditions": ["optimization", "a_b_testing", "roi"], "auto_approve": false, "requires_governance": false, "responsibility": "Matrix A/B, predição CTR/CVR/ROAS, roadmap de otimização"}

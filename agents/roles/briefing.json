@@ -1,0 +1,1 @@
+{"role": "the_scout", "model": "", "temperature": 0.5, "max_tokens": 3072, "system_prompt_file": "", "trigger_conditions": ["pipeline_start", "new_project"], "auto_approve": false, "requires_governance": false, "responsibility": "Briefing Agent — coleta requisitos, parce preferences, gera questionário"}

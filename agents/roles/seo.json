@@ -1,0 +1,1 @@
+{"role": "the_ranker", "model": "", "temperature": 0.2, "max_tokens": 4096, "system_prompt_file": "", "trigger_conditions": ["seo_optimization", "keyword_research"], "auto_approve": true, "requires_governance": false, "responsibility": "SEO Engine — OG tags, Schema JSON-LD, densidade, Core Web Vitals"}

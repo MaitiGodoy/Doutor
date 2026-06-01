@@ -1,0 +1,1 @@
+{"role": "the_wordsmiths", "model": "", "temperature": 0.8, "max_tokens": 4096, "system_prompt_file": "", "trigger_conditions": ["copy_generation", "content_creation"], "auto_approve": false, "requires_governance": true, "responsibility": "Neuro-Copy Cell — Halbert + Ogilvy + Kennedy fusion"}

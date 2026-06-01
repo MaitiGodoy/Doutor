@@ -3,12 +3,17 @@ import subprocess
 import json
 import asyncio
 
-from kernel.config import FINANCIAL_GUARD
-from kernel.orchestrator import Orchestrator
+from kernel.config import FINANCIAL_GUARD, PRODUCTION
+from kernel.orchestrator import AntimatterOrchestrator as Orchestrator
 from kernel.research_agent import ResearchAgent
 from kernel.agents import run_agent, run_neuro_copy
 from kernel.scope_guardian import ScopeGuardian
 from kernel.creative_agent import CreativeAgent
+from kernel.health import health_status
+from kernel.sandbox import exec_shell
+from kernel.provider_quotas import get_all_quotas, circuit_breaker_status, reset_daily_quotas
+from kernel.budget_dashboard import generate_dashboard
+from kernel.state_manager import StateManager
 
 app = FastMCP("omnisquad-mcp")
 
@@ -83,6 +88,41 @@ async def doutor_scope_check(user_command: str, target_path: str, original_conte
         return json.dumps({"status": "error", "error": str(e)})
 
 @app.tool()
+async def doutor_validate_compliance(target_path: str, scan_type: str = "comprehensive") -> str:
+    """Validação defensiva de código/dependências (bandit, safety, ruff + 5 auditors v1.2)"""
+    try:
+        from kernel.lateral_agent import LateralAgent
+        agent = LateralAgent()
+        res = await agent.run_defensive_validation(target_path, scan_type)
+        return json.dumps(res, indent=2, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"status": "error", "error": str(e)})
+
+@app.tool()
+async def doutor_remediate(target_path: str, action: str) -> str:
+    """Reparação ativa: auto_patch | dep_update | credential_isolate | fuzz_test | regression_test"""
+    try:
+        from kernel.lateral_agent import LateralAgent
+        agent = LateralAgent()
+        res = await agent.run_remediation(target_path, action)
+        return json.dumps(res, indent=2, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"status": "error", "error": str(e)})
+
+@app.tool()
+async def doutor_find_alternatives(blocked_phase: str, error_context_json: str, budget_status_json: str) -> str:
+    """Gera alternativas éticas e compliance-safe para fases bloqueadas (workaround_consultant)"""
+    try:
+        error_context = json.loads(error_context_json)
+        budget_status = json.loads(budget_status_json)
+        from kernel.lateral_agent import LateralAgent
+        agent = LateralAgent()
+        res = await agent.generate_alternatives(blocked_phase, error_context, budget_status)
+        return json.dumps(res, indent=2, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"status": "error", "error": str(e)})
+
+@app.tool()
 async def doutor_full_pipeline(input_data_json: str) -> str:
     """Executa o pipeline completo (briefing, pesquisa, copy, código, seo, otimização, design e concierge)"""
     try:
@@ -93,6 +133,61 @@ async def doutor_full_pipeline(input_data_json: str) -> str:
         orch = Orchestrator(input_data)
         res = await orch.run_with_concierge()
         return json.dumps(res, indent=2, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"status": "error", "error": str(e)})
+
+# ─── PRODUCTION HARDENING v4.1 TOOLS ───────────────────────────────
+
+@app.tool()
+async def doutor_health() -> str:
+    """Health check: status, uptime, db_connected, providers, quota_remaining_pct"""
+    try:
+        return json.dumps(health_status(), indent=2, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"status": "error", "error": str(e)})
+
+@app.tool()
+async def doutor_quotas() -> str:
+    """Provider quota status: used_today, limit, blocked, pct"""
+    try:
+        return json.dumps({"quotas": get_all_quotas(), "circuit_breaker": circuit_breaker_status()}, indent=2, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"status": "error", "error": str(e)})
+
+@app.tool()
+async def doutor_sandbox(command: str, run_id: str = "default", timeout: int = 60) -> str:
+    """Executa comando em sandbox isolado com allowlist e timeout (produção segura)"""
+    try:
+        res = exec_shell(command, run_id, timeout)
+        return json.dumps(res, indent=2, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"status": "error", "error": str(e)})
+
+@app.tool()
+async def doutor_dashboard() -> str:
+    """Gera budget dashboard HTML com gráficos de uso"""
+    try:
+        path = generate_dashboard()
+        return json.dumps({"status": "ok", "path": path}, indent=2, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"status": "error", "error": str(e)})
+
+@app.tool()
+async def doutor_reset_quotas() -> str:
+    """Reseta contadores diários de quota (força rotação)"""
+    try:
+        reset_daily_quotas()
+        return json.dumps({"status": "ok", "message": "Daily quotas reset"}, indent=2, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"status": "error", "error": str(e)})
+
+@app.tool()
+async def doutor_backup() -> str:
+    """Cria backup diário do banco SQLite"""
+    try:
+        sm = StateManager()
+        path = sm.daily_backup()
+        return json.dumps({"status": "ok", "backup_path": path}, indent=2, ensure_ascii=False)
     except Exception as e:
         return json.dumps({"status": "error", "error": str(e)})
 
