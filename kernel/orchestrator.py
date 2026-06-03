@@ -1,6 +1,7 @@
 import asyncio
 import os
 import time
+import random
 from typing import Dict, Any
 
 class AntimatterOrchestrator:
@@ -24,10 +25,14 @@ class AntimatterOrchestrator:
             # For the sake of this example, we'll assume other agents are imported and initialized similarly.
             # In a real scenario, you would have more agent initializations.
             pass
-        
+         
         # Initialize the Council Protocol after agents are ready
         from agents.protocols.council_protocol import CouncilProtocol
         self.council = CouncilProtocol(self.agents, self.state_mgr)
+        
+        # Initialize the Evolution Engine after agents are ready
+        from kernel.evolution_engine import EvolutionEngine
+        self.evolution_engine = EvolutionEngine(self.agents, self.state_mgr)
 
     async def execute(self, input_data: Dict) -> Dict:
         start_time = time.time()
@@ -122,6 +127,15 @@ class AntimatterOrchestrator:
             
             print(f"[Fofoqueira] Narrativa gerada. Preview: {narrative['narrative_markdown'][:150]}...")
         # --- FIM DA INTEGRAÇÃO A FOFOQUEIRA ---
+        
+        # --- INÍCIO DO LOOP EVOLUTIVO (Raro, não toda vez para economizar) ---
+        # 5% de chance de rodar evolução a cada task
+        if random.random() < 0.05:
+            # Escolhe um agente aleatório para tentar otimizar
+            agent_to_optimize = random.choice(list(self.agents.keys()))
+            if agent_to_optimize != 'the_darwin':
+                await self.evolution_engine.run_evolution_cycle(agent_to_optimize)
+        # --- FIM DO LOOP EVOLUTIVO ---
 
         # After all phases, return the result
         return final_result
