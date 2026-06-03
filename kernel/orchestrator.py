@@ -6,6 +6,7 @@ class AntimatterOrchestrator:
         self.agent_configs = agent_configs
         self.provider_router = provider_router
         self.agents = {}
+        self.state_mgr = None  # Placeholder for state manager
 
     async def initialize(self):
         # Initialize agents
@@ -17,8 +18,21 @@ class AntimatterOrchestrator:
             # For the sake of this example, we'll assume other agents are imported and initialized similarly.
             # In a real scenario, you would have more agent initializations.
             pass
+        
+        # Initialize the Council Protocol after agents are ready
+        from agents.protocols.council_protocol import CouncilProtocol
+        self.council = CouncilProtocol(self.agents, self.state_mgr)
 
     async def execute(self, input_data: Dict) -> Dict:
+        # --- INÍCIO DO PROTOCOLO CONSELHO ---
+        # Run the council round before any phase
+        council_result = await self.council.run_council_round(input_data)
+        input_data["council_wisdom"] = council_result["synthesis"]
+        input_data["all_opinions"] = council_result["opinions"]
+
+        print(f"[CONSELHO] Consenso: {council_result['consensus']}. {len(council_result['opinions'])} agentes opinaram.")
+        # --- FIM DO PROTOCOLO CONSELHO ---
+
         # We assume the execution is divided into phases.
         # For simplicity, we'll define a list of phase names.
         phases = ["Briefing", "Estratégia", "Planejamento", "Execução", "Revisão"]
@@ -43,7 +57,7 @@ class AntimatterOrchestrator:
                             # Parse simples para verificar aprovação (assumindo que Constitution retorna approved: bool)
                             if "approved" in const_check['response']['content'].lower() and "true" in const_check['response']['content'].lower():
                                 input_data = await minimalist.apply_optimization(input_data, opt_result['implementation_hint'])
-                                print(f"[Minimalist] Otimização aplicada: {opt_result['optimimation']}")
+                                print(f"[Minimalist] Otimização aplicada: {opt_result['optimization']}")
                         else:
                             # If Constitution agent is not available, we skip governance check? But the rule says requires_governance_validation: true.
                             # For safety, we skip the optimization if we can't validate.
