@@ -1,4 +1,6 @@
 import asyncio
+import os
+import time
 from typing import Dict, Any
 
 class AntimatterOrchestrator:
@@ -7,6 +9,7 @@ class AntimatterOrchestrator:
         self.provider_router = provider_router
         self.agents = {}
         self.state_mgr = None  # Placeholder for state manager
+        self.token_mgr = None  # Placeholder for token manager
 
     async def initialize(self):
         # Initialize agents
@@ -14,7 +17,10 @@ class AntimatterOrchestrator:
             if role == "the_minimalist":
                 from agents.minimalist_agent import MinimalistAgent
                 self.agents[role] = MinimalistAgent(config, self.provider_router)
-            # Other agents would be initialized here, but we are only concerned with the_minimalist
+            elif role == "the_gossip":
+                from agents.gossip_agent import GossipAgent
+                self.agents[role] = GossipAgent(config, self.provider_router)
+            # Other agents would be initialized here, but we are only concerned with the_minimalist and the_gossip
             # For the sake of this example, we'll assume other agents are imported and initialized similarly.
             # In a real scenario, you would have more agent initializations.
             pass
@@ -24,6 +30,13 @@ class AntimatterOrchestrator:
         self.council = CouncilProtocol(self.agents, self.state_mgr)
 
     async def execute(self, input_data: Dict) -> Dict:
+        start_time = time.time()
+        # We assume the execution is divided into phases.
+        # For simplicity, we'll define a list of phase names.
+        phases = ["Briefing", "Estratégia", "Planejamento", "Execução", "Revisão"]
+        executed_phases = []
+        governance_log = []  # Placeholder for governance decisions
+        
         # --- INÍCIO DO PROTOCOLO CONSELHO ---
         # Run the council round before any phase
         council_result = await self.council.run_council_round(input_data)
@@ -33,11 +46,8 @@ class AntimatterOrchestrator:
         print(f"[CONSELHO] Consenso: {council_result['consensus']}. {len(council_result['opinions'])} agentes opinaram.")
         # --- FIM DO PROTOCOLO CONSELHO ---
 
-        # We assume the execution is divided into phases.
-        # For simplicity, we'll define a list of phase names.
-        phases = ["Briefing", "Estratégia", "Planejamento", "Execução", "Revisão"]
-        
         for i, current_phase_name in enumerate(phases):
+            executed_phases.append(current_phase_name.lower())
             # --- INÍCIO DA INTEGRAÇÃO THE MINIMALIST ---
             if hasattr(self, 'agents') and 'the_minimalist' in self.agents:
                 minimalist = self.agents['the_minimalist']
@@ -72,5 +82,46 @@ class AntimatterOrchestrator:
             # In a real orchestrator, you would have specific logic for each phase.
             # We'll simulate by doing nothing and just moving to the next phase.
 
+        # After all phases, we have a final result (for now, just the input_data)
+        final_result = input_data
+        
+        # --- INÍCIO DA INTEGRAÇÃO A FOFOQUEIRA ---
+        if hasattr(self, 'agents') and 'the_gossip' in self.agents:
+            gossip = self.agents['the_gossip']
+            
+            # Prepara contexto completo para a narrativa
+            pipeline_log = {
+                "input": input_data,
+                "output": final_result,
+                "started_at": start_time,
+                "ended_at": time.time()
+            }
+            
+            # Pega audit trail do StateManager (placeholder)
+            # In a real implementation, we would get this from self.state_mgr
+            audit_trail = []  # Placeholder
+            
+            # Métricas consolidadas
+            metrics = {
+                "tokens_used": self.token_mgr.get_total_used() if self.token_mgr else 0,
+                "execution_time_ms": int((time.time() - start_time) * 1000),
+                "phases_completed": len(executed_phases),
+                "governance_approvals": len([g for g in governance_log if g.get("approved")]),
+                "output_artifacts": []  # Placeholder for output artifacts
+            }
+            
+            # Gera narrativa
+            narrative = await gossip.narrate_pipeline(pipeline_log, audit_trail, metrics)
+            
+            # Anexa narrativa ao resultado final (para Concierge/MCP)
+            final_result["gossip_narrative"] = narrative
+            
+            # Envia para usuário se configurado
+            if os.getenv("NOTIFY_ON_COMPLETION_ONLY") == "true" and os.getenv("USER_PHONE"):
+                await gossip.send_to_concierge(narrative, os.getenv("USER_PHONE"))
+            
+            print(f"[Fofoqueira] Narrativa gerada. Preview: {narrative['narrative_markdown'][:150]}...")
+        # --- FIM DA INTEGRAÇÃO A FOFOQUEIRA ---
+
         # After all phases, return the result
-        return input_data
+        return final_result

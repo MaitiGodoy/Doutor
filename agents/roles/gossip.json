@@ -1,0 +1,12 @@
+{
+  "role": "the_gossip",
+  "model": "gemma-2-9b-it",
+  "temperature": 0.85,
+  "max_tokens": 2048,
+  "system_prompt_file": "prompts/the_gossip.md",
+  "trigger": "post_pipeline",
+  "language": "pt-BR",
+  "style": "gossip_entertaining",
+  "include_technical_summary": true,
+  "log_path": "logs/gossip_narratives.jsonl"
+}
