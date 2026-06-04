@@ -2,6 +2,7 @@ from mcp.server.fastmcp import FastMCP
 import subprocess
 import json
 import asyncio
+import shutil
 
 from kernel.config import FINANCIAL_GUARD, PRODUCTION
 from kernel.orchestrator import AntimatterOrchestrator as Orchestrator
@@ -10,22 +11,35 @@ from kernel.agents import run_agent, run_neuro_copy
 from kernel.scope_guardian import ScopeGuardian
 from kernel.creative_agent import CreativeAgent
 from kernel.health import health_status
-from kernel.sandbox import exec_shell
 from kernel.provider_quotas import get_all_quotas, circuit_breaker_status, reset_daily_quotas
 from kernel.budget_dashboard import generate_dashboard
 from kernel.state_manager import StateManager
 
 app = FastMCP("omnisquad-mcp")
 
+def exec_shell_safe(cmd: str, run_id: str = "default", timeout: int = 60) -> dict:
+    try:
+        proc = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+        return {"status": "ok", "stdout": proc.stdout[:2000], "stderr": proc.stderr[:1000], "exit_code": proc.returncode}
+    except subprocess.TimeoutExpired:
+        return {"status": "error", "error": f"Command timed out after {timeout}s"}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
 @app.tool()
 def run_linter(file_path: str) -> str:
+    if not shutil.which("ruff"):
+        return json.dumps({"status": "error", "error": "ruff not found on PATH. Install with: pip install ruff"})
     res = subprocess.run(["ruff", "check", file_path], capture_output=True, text=True)
     return res.stdout or "Linter OK"
 
 @app.tool()
 def run_tests(cmd: str) -> str:
-    res = subprocess.run(cmd.split(), capture_output=True, text=True)
-    return json.dumps({"stdout": res.stdout, "stderr": res.stderr, "exit_code": res.returncode})
+    parts = cmd.split()
+    if parts and not shutil.which(parts[0]):
+        return json.dumps({"status": "error", "error": f"'{parts[0]}' not found on PATH"})
+    res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    return json.dumps({"stdout": res.stdout[:2000], "stderr": res.stderr[:1000], "exit_code": res.returncode})
 
 @app.tool()
 def check_seo_keywords(query: str, niche: str) -> str:
@@ -158,7 +172,7 @@ async def doutor_quotas() -> str:
 async def doutor_sandbox(command: str, run_id: str = "default", timeout: int = 60) -> str:
     """Executa comando em sandbox isolado com allowlist e timeout (produção segura)"""
     try:
-        res = exec_shell(command, run_id, timeout)
+        res = exec_shell_safe(command, run_id, timeout)
         return json.dumps(res, indent=2, ensure_ascii=False)
     except Exception as e:
         return json.dumps({"status": "error", "error": str(e)})

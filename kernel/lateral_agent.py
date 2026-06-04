@@ -63,23 +63,25 @@ class LateralAgent:
     """
     The Lateral v1.2 — 5 Defensive Audits + 5 Active Remediations.
     """
-    def __init__(self, config_path: str = "agents/roles/lateral.json"):
+    def __init__(self, config_path="agents/roles/lateral.json", router=None):
         base_dir = Path(__file__).parent.parent
-        resolved_config_path = base_dir / config_path
-
-        self.config = {}
-        if resolved_config_path.exists():
-            try:
-                with open(resolved_config_path, "r", encoding="utf-8") as f:
-                    self.config = json.load(f)
-            except Exception as e:
-                print(f"[LateralAgent] Error loading config: {e}")
+        if isinstance(config_path, dict):
+            self.config = config_path
         else:
-            self.config = {
-                "role": "the_lateral",
-                "system_prompt_file": "prompts/the_lateral.md",
-                "log_to": "logs/lateral_audit.jsonl"
-            }
+            resolved_config_path = base_dir / config_path
+            self.config = {}
+            if resolved_config_path.exists():
+                try:
+                    with open(resolved_config_path, "r", encoding="utf-8") as f:
+                        self.config = json.load(f)
+                except Exception as e:
+                    print(f"[LateralAgent] Error loading config: {e}")
+            else:
+                self.config = {
+                    "role": "the_lateral",
+                    "system_prompt_file": "prompts/the_lateral.md",
+                    "log_to": "logs/lateral_audit.jsonl"
+                }
 
         log_to = self.config.get("log_to", "logs/lateral_audit.jsonl")
         self.audit_log_path = base_dir / log_to
@@ -869,9 +871,25 @@ Status do budget: {json.dumps(budget_status)}
 Gere alternativas éticas, funcionais e compliance-safe.
 Retorne APENAS JSON conforme schema de workaround_consultant.
 """
-        result = await call_llm("the_lateral", system, prompt)
-        self._log_audit(result)
-        return result
+        try:
+            result = await call_llm("the_lateral", system, prompt)
+            self._log_audit(result)
+            return result
+        except Exception as e:
+            fallback = {
+                "status": "fallback",
+                "blocked_phase": blocked_phase,
+                "alternatives": [
+                    {"approach": "reduzir_escopo", "description": "Remover dependencias nao criticas para destravar a fase"},
+                    {"approach": "trocar_provedor", "description": "Substituir provedor atual por alternativa viavel"},
+                    {"approach": "modo_offline", "description": "Processar localmente sem dependencia de API externa"},
+                    {"approach": "revisao_manual", "description": "Substituir etapa automatizada por revisao manual temporaria"}
+                ],
+                "recommendation": "Aplicar reducao de escopo e tentar novamente",
+                "llm_error": str(e)
+            }
+            self._log_audit(fallback)
+            return fallback
 
     # ─── HELPERS ────────────────────────────────────────────────────
 

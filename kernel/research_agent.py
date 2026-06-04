@@ -30,7 +30,7 @@ class ResearchAgent:
             trends = {
                 "query": query,
                 "results_count": len(data.get("organic", [])),
-                "top_results": [{"title": r["title"], "snippet": r["snippet"], "url": r["link"]} 
+                "top_results": [{"title": r.get("title", ""), "snippet": r.get("snippet", ""), "url": r.get("link", "")} 
                                for r in data.get("organic", [])[:5]],
                 "related_searches": data.get("relatedSearches", [])[:10]
             }
@@ -57,15 +57,15 @@ class ResearchAgent:
                 
                 for post in data["data"]["children"][:10]:
                     d = post["data"]
-                    if d["score"] > 100 and d["num_comments"] > 20:
+                    if d.get("score", 0) > 100 and d.get("num_comments", 0) > 20:
                         trending.append({
                             "source": f"reddit/r/{sub}",
-                            "title": d["title"],
-                            "score": d["score"],
-                            "comments": d["num_comments"],
-                            "url": f"https://reddit.com{d['permalink']}",
-                            "created_utc": d["created_utc"],
-                            "engagement_rate": d["num_comments"] / max(d["score"], 1)
+                            "title": d.get("title", ""),
+                            "score": d.get("score", 0),
+                            "comments": d.get("num_comments", 0),
+                            "url": f"https://reddit.com{d.get('permalink', '')}",
+                            "created_utc": d.get("created_utc", 0),
+                            "engagement_rate": d.get("num_comments", 0) / max(d.get("score", 1), 1)
                         })
                 time.sleep(1)  # Rate limit
             except Exception as e:
@@ -99,13 +99,13 @@ class ResearchAgent:
             
             opportunities = []
             for article in data.get("articles", [])[:10]:
-                opportunities.append({
-                    "title": article["title"],
-                    "source": article["source"]["name"],
-                    "published_at": article["publishedAt"],
-                    "url": article["url"],
-                    "relevance_score": self._calculate_relevance(article["title"]),
-                    "angle_suggestion": f"Conectar {article['title']} com {self.niche}"
+                    opportunities.append({
+                    "title": article.get("title", ""),
+                    "source": article.get("source", {}).get("name", ""),
+                    "published_at": article.get("publishedAt", ""),
+                    "url": article.get("url", ""),
+                    "relevance_score": self._calculate_relevance(article.get("title", "")),
+                    "angle_suggestion": f"Conectar {article.get('title', '')} com {self.niche}"
                 })
             
             return sorted(opportunities, key=lambda x: x["relevance_score"], reverse=True)[:5]
@@ -127,9 +127,9 @@ class ResearchAgent:
                 for result in data.get("organic", [])[:3]:
                     moves.append({
                         "competitor": competitor,
-                        "title": result["title"],
-                        "snippet": result["snippet"],
-                        "url": result["link"],
+                        "title": result.get("title", ""),
+                        "snippet": result.get("snippet", ""),
+                        "url": result.get("link", ""),
                         "detected_at": datetime.now().isoformat()
                     })
             except Exception as e:
@@ -178,12 +178,12 @@ class ResearchAgent:
         """Gera recomendações acionáveis baseadas nos dados"""
         recs = []
         if trends.get("related_searches"):
-            recs.append(f" Criar conteúdo sobre: {', '.join(trends['related_searches'][:3])}")
+            recs.append(f"Criar conteudo sobre: {', '.join(trends['related_searches'][:3])}")
         if reddit:
-            top_topic = reddit[0]["title"]
-            recs.append(f"💬 Participar da discussão no Reddit: {top_topic}")
+            top_topic = reddit[0].get("title", "")
+            recs.append(f"Participar da discussao no Reddit: {top_topic}")
         if news:
-            recs.append(f"📰 Aproveitar newsjacking: {news[0]['title']}")
+            recs.append(f"Aproveitar newsjacking: {news[0].get('title', '')}")
         return recs
 
 async def inject_research_before_planning(input_data: dict) -> dict:
