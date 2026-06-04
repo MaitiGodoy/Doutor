@@ -1,0 +1,537 @@
+{
+  "prompts": {
+    "the_architect.md": {
+      "size": 277,
+      "lines": 4,
+      "hash": "414226cfa9e5aa52a2869c9362e6c2206948dac13850091d02ed5fe125bd2efd"
+    },
+    "the_chronic.md": {
+      "size": 307,
+      "lines": 4,
+      "hash": "78d17fb9d009524198eefc21a6af8c903c29a6c8bf5f61c8fbdd09c0e7775c98"
+    },
+    "the_concierge.md": {
+      "size": 267,
+      "lines": 4,
+      "hash": "3392da14830f8220bdd82e92a7656a270e82f04afe05ff16012eba69ac4c9897"
+    },
+    "the_constitution.md": {
+      "size": 276,
+      "lines": 4,
+      "hash": "2ee960f3199b22a21c873a6f3166f2db7a74dfb0dfc63642165beaf68da39024"
+    },
+    "the_darwin.md": {
+      "size": 293,
+      "lines": 4,
+      "hash": "1aff8748fa0632bb6eff7dbb0a1d7286e1d029f2bf8a4d2b35d038b5a4c9230f"
+    },
+    "the_director.md": {
+      "size": 318,
+      "lines": 4,
+      "hash": "29c8570ef88c33e56520b029149381e4a484e2fb469f360dd4ef10df5cfe87f9"
+    },
+    "the_empath.md": {
+      "size": 255,
+      "lines": 4,
+      "hash": "14694c9bff8430b789df9328baa690c62759a536c860ca9c53f263bc7ca12915"
+    },
+    "the_gossip.md": {
+      "size": 360,
+      "lines": 4,
+      "hash": "39b34053eaababa9e5c06ec6dcdddad861b5b3071f5ea12f14df707436316749"
+    },
+    "the_inner_spark.md": {
+      "size": 289,
+      "lines": 4,
+      "hash": "b3386d6f46eb77c1f33f218670d0a56eb866c63bde10b886aedb7365d4d0b772"
+    },
+    "the_inspector.md": {
+      "size": 275,
+      "lines": 4,
+      "hash": "cee2b9461fc98374ff8c5c669694d5064244807ed82ce59d110031c79ddca6c9"
+    },
+    "the_lateral.md": {
+      "size": 5606,
+      "lines": 147,
+      "hash": "73dee39539b2509c88cb79585bfc4a4a8ebddddee7d6b1320cb39ab550a099b2"
+    },
+    "the_master_key.md": {
+      "size": 264,
+      "lines": 4,
+      "hash": "3ba08dee1b82116d77d192143ef26bf612ffbf524bd3e1a10c5108e00e0881b1"
+    },
+    "the_minimalist.md": {
+      "size": 311,
+      "lines": 4,
+      "hash": "3cbac09660a46aaab8bcb501ebd30bcf6c93ba9256846ea2c36437fb91dc38ff"
+    },
+    "the_omni_aa.md": {
+      "size": 4016,
+      "lines": 60,
+      "hash": "1c55a893590a3332ea122f5aab518caa453386c4ab495fdfeec3d311034b1a7a"
+    },
+    "the_planner_alpha.md": {
+      "size": 315,
+      "lines": 4,
+      "hash": "06262cdabf090ed51d2a4564c9ee002cbcfed9eff75f056f512fef057f918823"
+    },
+    "the_planner_beta.md": {
+      "size": 333,
+      "lines": 4,
+      "hash": "550d7382a66bbfa1eae6b8eb50a83285488f7db0f103c1f34f391be4e93f5fe7"
+    },
+    "the_polymath.md": {
+      "size": 289,
+      "lines": 4,
+      "hash": "ee6156aed74d1652e7f9ac59ec843fd1d09fd8afb3fe1e2e292b2f5023f98940"
+    },
+    "the_producer.md": {
+      "size": 288,
+      "lines": 4,
+      "hash": "bf3122e4d3c4103df03e09d6234e866ff5deef3c1249ace1eba220a58c77aaea"
+    },
+    "the_prompt_architect.md": {
+      "size": 403,
+      "lines": 4,
+      "hash": "76352d692eb11b724b9cf88aff7cd23fdac1f3f07375a35e0ebef0dff94f99b1"
+    },
+    "the_ranker.md": {
+      "size": 290,
+      "lines": 4,
+      "hash": "b810ac415a6d43c3d1642d301fbf296e3fa2f94b54eba688795499bdc5305b28"
+    },
+    "the_scaler.md": {
+      "size": 286,
+      "lines": 4,
+      "hash": "da9947762a2ebc5c8418a942889c6b1c057e3e7f34a0f77edff1757a30bb55af"
+    },
+    "the_scout.md": {
+      "size": 287,
+      "lines": 4,
+      "hash": "c90dd79e14e8c1a10c1a41c0f0439cff53b1007c359ee67119507ec973571887"
+    },
+    "the_senior_dev.md": {
+      "size": 315,
+      "lines": 4,
+      "hash": "d2612ed6200e2a3ccbda8b7456b1087a7816ad10fd5ff476117452bed73df5e4"
+    },
+    "the_senior_dev_core.md": {
+      "size": 299,
+      "lines": 4,
+      "hash": "d9faa545e806404c2ebcdd6946a78c30ae01aab64ee464a5d0dcded7b2d85d4a"
+    },
+    "the_senior_dev_ops.md": {
+      "size": 288,
+      "lines": 4,
+      "hash": "4568deb30d16f2612c52ccd3d06914a3c2e3cefad993852418e0a6365ee805c9"
+    },
+    "the_senior_dev_ui.md": {
+      "size": 278,
+      "lines": 4,
+      "hash": "a4dfd73548672aced4a2023a31d9a1e71e32701a47cc4f30742bab4b124a4706"
+    },
+    "the_surgeon.md": {
+      "size": 327,
+      "lines": 4,
+      "hash": "9f0f8668c0c94dcc3cbaca46f8c78631a421ffbb2b75f81307e7282bb9dea1bd"
+    },
+    "the_voice.md": {
+      "size": 1687,
+      "lines": 29,
+      "hash": "4af39a8fcb34e6ab027081b34417f976744ddc45f8d008217008acd1014e4e12"
+    },
+    "the_wordsmiths.md": {
+      "size": 273,
+      "lines": 4,
+      "hash": "91194b63edc569ae29a2a0f4b706c540461095378069ecc53cf7290a9e5c2aad"
+    },
+    "the_zoiao.md": {
+      "size": 1195,
+      "lines": 27,
+      "hash": "52e32682d95f4ec901bc8e6b68f68aa3b0c6d75899ec0669fafe079e3bb39252"
+    }
+  },
+  "code_structure": {
+    "agents/base_agent.py": [
+      "__init__",
+      "_load_system_prompt",
+      "inject_chronic",
+      "_safe_json_parse",
+      "_log_execution"
+    ],
+    "agents/briefing_agent.py": [
+      "__init__",
+      "_generate_question",
+      "_parse_response",
+      "_save_to_env_secure"
+    ],
+    "agents/chronic_agent.py": [
+      "__init__"
+    ],
+    "agents/concierge_agent.py": [
+      "__init__"
+    ],
+    "agents/council_protocol.py": [
+      "__init__",
+      "_safe_json_parse"
+    ],
+    "agents/darwin_agent.py": [
+      "__init__"
+    ],
+    "agents/design_agent.py": [
+      "__init__"
+    ],
+    "agents/director_agent.py": [
+      "__init__"
+    ],
+    "agents/dual_output_agent.py": [
+      "__init__",
+      "_build_prompt",
+      "_parse_output",
+      "_check_consistency"
+    ],
+    "agents/gossip_agent.py": [
+      "__init__"
+    ],
+    "agents/governance.py": [
+      "__init__",
+      "__init__"
+    ],
+    "agents/inner_spark_agent.py": [
+      "__init__"
+    ],
+    "agents/lateral_agent.py": [],
+    "agents/master_key_agent.py": [
+      "__init__",
+      "_log"
+    ],
+    "agents/minimalist_agent.py": [
+      "__init__"
+    ],
+    "agents/omni_aa_agent.py": [
+      "__init__",
+      "_log"
+    ],
+    "agents/optimizer_agent.py": [
+      "__init__"
+    ],
+    "agents/planner_alpha_agent.py": [
+      "__init__"
+    ],
+    "agents/planner_beta_agent.py": [
+      "__init__"
+    ],
+    "agents/polymath_agent.py": [
+      "__init__"
+    ],
+    "agents/prompt_architect_agent.py": [
+      "__init__"
+    ],
+    "agents/quality_agent.py": [
+      "__init__"
+    ],
+    "agents/ranker_agent.py": [
+      "__init__",
+      "optimize_file"
+    ],
+    "agents/scout_agent.py": [
+      "__init__"
+    ],
+    "agents/senior_dev_agent.py": [
+      "__init__"
+    ],
+    "agents/senior_dev_core_agent.py": [
+      "__init__"
+    ],
+    "agents/senior_dev_ops_agent.py": [
+      "__init__"
+    ],
+    "agents/senior_dev_ui_agent.py": [
+      "__init__"
+    ],
+    "agents/strategy_agent.py": [
+      "__init__"
+    ],
+    "agents/surgeon_agent.py": [
+      "__init__"
+    ],
+    "agents/voice_agent.py": [
+      "__init__"
+    ],
+    "agents/warden_agent.py": [
+      "__init__"
+    ],
+    "agents/wordsmiths_agent.py": [
+      "__init__"
+    ],
+    "agents/zoiao_agent.py": [
+      "__init__"
+    ],
+    "kernel/agents.py": [
+      "_get_router"
+    ],
+    "kernel/anti_entropy.py": [
+      "__init__",
+      "_load_baseline",
+      "generate_baseline",
+      "_scan_dir",
+      "scan_codebase",
+      "scan_prompts",
+      "enforce",
+      "_hash_file"
+    ],
+    "kernel/audit_logger.py": [
+      "__init__",
+      "log"
+    ],
+    "kernel/budget_dashboard.py": [
+      "generate_dashboard"
+    ],
+    "kernel/concierge.py": [],
+    "kernel/config.py": [],
+    "kernel/consensus.py": [
+      "_parse_agent_output",
+      "__init__",
+      "resolve_conflicts",
+      "_build_system_prompt"
+    ],
+    "kernel/context_lru.py": [
+      "__init__",
+      "get",
+      "put",
+      "compress_if_needed"
+    ],
+    "kernel/creative_agent.py": [
+      "__init__",
+      "_load_platform_specs",
+      "generate_from_template",
+      "generate_ai_hero",
+      "_call_hf_image_api",
+      "_call_gemini_image_api",
+      "_validate_compliance",
+      "_upload_to_cloudinary"
+    ],
+    "kernel/darwin_loop.py": [],
+    "kernel/eval_harness.py": [
+      "__init__",
+      "validate_output",
+      "aggregate_metrics"
+    ],
+    "kernel/health.py": [
+      "get_uptime",
+      "check_db",
+      "check_disk",
+      "health_status",
+      "auto_recover"
+    ],
+    "kernel/lateral_agent.py": [
+      "shannon_entropy",
+      "__init__",
+      "_resolve_target",
+      "_get_system_prompt",
+      "_scan_secrets",
+      "_scan_cors_headers",
+      "_scan_cookies",
+      "_scan_debug_flags",
+      "_scan_dep_lock",
+      "_run_bandit",
+      "_run_safety",
+      "_remediate_auto_patch",
+      "_remediate_dep_update",
+      "_remediate_credential_isolate",
+      "_remediate_fuzz_test",
+      "_remediate_regression_test",
+      "_calculate_risk",
+      "_recommend",
+      "_log_audit"
+    ],
+    "kernel/llm_client.py": [
+      "_get_router",
+      "_role_config"
+    ],
+    "kernel/mcp_bridge.py": [
+      "register_agent"
+    ],
+    "kernel/notify.py": [
+      "send_whatsapp_text",
+      "send_whatsapp_voice",
+      "make_voice_call",
+      "escalate_notification"
+    ],
+    "kernel/observability.py": [
+      "__init__",
+      "_init_schema",
+      "ingest_jsonl",
+      "query"
+    ],
+    "kernel/orchestrator.py": [
+      "__init__",
+      "initialize",
+      "start_background_tasks",
+      "detect_module"
+    ],
+    "kernel/provider_quotas.py": [
+      "_utc_date",
+      "_check_midnight_reset",
+      "ensure_provider_quota",
+      "check_quota",
+      "increment_quota",
+      "block_provider",
+      "get_all_quotas",
+      "get_healthy_providers",
+      "get_next_available",
+      "circuit_breaker_status"
+    ],
+    "kernel/provider_router.py": [
+      "get_agent_group",
+      "get_agents_in_other_groups",
+      "load_providers",
+      "__init__",
+      "_init_sqlite",
+      "_reset_if_new_day",
+      "get_healthy_providers",
+      "select_model",
+      "record_usage",
+      "close",
+      "_get_client",
+      "get_model_for_agent",
+      "get_provider_for_agent",
+      "get_diverse_providers",
+      "get_best_provider",
+      "select_provider",
+      "mark_success",
+      "mark_failure",
+      "budget_status",
+      "reset_daily_counts"
+    ],
+    "kernel/research_agent.py": [
+      "__init__",
+      "search_google_trends",
+      "scan_reddit",
+      "monitor_product_hunt",
+      "news_jacking_scan",
+      "competitor_watch",
+      "_calculate_relevance",
+      "generate_intelligence_briefing",
+      "_generate_recommendations"
+    ],
+    "kernel/resilience_engine.py": [
+      "__init__",
+      "validate_schema"
+    ],
+    "kernel/sandbox.py": [
+      "__init__",
+      "validate_and_apply",
+      "_validate_file",
+      "cleanup"
+    ],
+    "kernel/scheduler.py": [
+      "parse_cron",
+      "_cron_match",
+      "check_cron",
+      "validate_webhook",
+      "__init__",
+      "register_hook",
+      "_log_execution",
+      "start"
+    ],
+    "kernel/scope_guardian.py": [
+      "__init__",
+      "validate_change",
+      "_is_formatting_only_change",
+      "_is_target_small_scope"
+    ],
+    "kernel/semantic_memory.py": [
+      "__init__",
+      "_load",
+      "store",
+      "retrieve",
+      "_save",
+      "_now"
+    ],
+    "kernel/state_manager.py": [
+      "__init__",
+      "get_connection",
+      "init_db",
+      "save_run",
+      "get_run",
+      "save_checkpoint",
+      "load_checkpoint",
+      "log_audit",
+      "get_run_history",
+      "upsert_provider_quota",
+      "get_all_provider_quotas",
+      "reset_daily_quotas",
+      "daily_backup",
+      "close"
+    ],
+    "kernel/state_store.py": [
+      "get_connection",
+      "init_db",
+      "get_run",
+      "save_run",
+      "save_artifact",
+      "get_artifact",
+      "get_provider_quota",
+      "upsert_provider_quota",
+      "get_all_provider_quotas",
+      "log_audit",
+      "create_snapshot",
+      "daily_backup",
+      "reset_daily_quotas"
+    ],
+    "kernel/token_manager.py": [
+      "__init__",
+      "_get_quotas",
+      "_update_quota",
+      "route_with_budget",
+      "get_budget_status",
+      "reset_daily_quotas",
+      "_block_provider",
+      "_log"
+    ],
+    "kernel/token_policy.py": [
+      "__init__",
+      "is_strict",
+      "is_host_blocked",
+      "is_external_required",
+      "validate_keys_configured",
+      "log_dispatch",
+      "log_completion",
+      "record_violation",
+      "run_self_audit",
+      "get_token_usage_summary",
+      "force_external_only_test"
+    ],
+    "kernel/tool_registry.py": [
+      "__init__",
+      "_load",
+      "register",
+      "check_health",
+      "_save",
+      "_now"
+    ],
+    "kernel/utils.py": [
+      "hash_payload",
+      "load_cache",
+      "save_cache",
+      "load_state",
+      "save_state",
+      "trim_context",
+      "validate_json",
+      "compress_json"
+    ]
+  },
+  "critical_methods": [
+    "kernel/anti_entropy.py:enforce",
+    "kernel/creative_agent.py:_validate_compliance",
+    "kernel/eval_harness.py:validate_output",
+    "kernel/resilience_engine.py:validate_schema",
+    "kernel/sandbox.py:validate_and_apply",
+    "kernel/sandbox.py:_validate_file",
+    "kernel/scheduler.py:validate_webhook",
+    "kernel/scope_guardian.py:validate_change",
+    "kernel/token_policy.py:validate_keys_configured",
+    "kernel/utils.py:validate_json"
+  ]
+}

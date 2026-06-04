@@ -33,6 +33,7 @@ from agents.optimizer_agent import OptimizerAgent
 from agents.design_agent import DesignAgent
 from agents.ranker_agent import RankerAgent
 from agents.concierge_agent import ConciergeAgent
+from agents.warden_agent import WardenAgent
 from agents.master_key_agent import MasterKeyAgent
 from agents.zoiao_agent import ZoiaoAgent
 from agents.inner_spark_agent import InnerSparkAgent
@@ -108,6 +109,8 @@ class AntimatterOrchestrator:
         self.team_forge = TeamForge()
         self.inner_spark = InnerSpark()
         self.root_path = str(Path(__file__).parent.parent)
+        warden_config = {"role": "the_warden", "max_retries": 0, "timeout": 30}
+        self.warden = WardenAgent(warden_config, self.provider_router)
 
     def initialize(self):
         roles_dir = Path("agents/roles")
@@ -172,6 +175,19 @@ class AntimatterOrchestrator:
         data = input_data or self.input
 
         try:
+            # 0. WARDEN — ANTI-DEGRADACAO (GATE SUPREMO)
+            logger.info("[Orchestrator] Warden: verificando integridade do Doutor...")
+            warden_check = await self.warden.pre_execution_check()
+            if warden_check["status"] == "blocked":
+                logger.critical(f"[Orchestrator] Warden bloqueou execucao: {warden_check['violations']}")
+                return {
+                    "status": "blocked",
+                    "reason": "warden_degradation",
+                    "violations": warden_check["violations"],
+                    "run_id": run_id
+                }
+            logger.info("[Orchestrator] Warden: integridade confirmada. Prosseguindo.")
+
             # 1. SNAPSHOT DE SEGURANCA (OBRIGATORIO)
             logger.info(f"[Orchestrator] {run_id} iniciado. Criando snapshot de seguranca...")
             snapshot_path = await self.agents["the_master_key"].create_full_backup(run_id)
