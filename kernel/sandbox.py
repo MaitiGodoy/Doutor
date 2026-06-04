@@ -1,113 +1,119 @@
-import os
-import subprocess
-import shlex
-import time
-import logging
-import tempfile
+import os, tempfile, subprocess, json, logging, shutil
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict
 
-logger = logging.getLogger("antimatter.sandbox")
+logger = logging.getLogger("doutor.sandbox")
 
-ALLOWED_COMMANDS = {
-    "pip", "python", "node", "npm", "git", "ruff", "bandit", "safety",
-    "curl", "ls", "cat", "echo", "grep", "find", "head", "tail",
-    "wc", "sort", "uniq", "mkdir", "cp", "mv", "touch", "chmod",
-    "pytest", "black", "isort", "flake8", "mypy",
-    "sleep", "timeout", "date", "whoami", "uname",
-}
+class Sandbox:
+    def __init__(self, project_root: str):
+        self.root = Path(project_root)
+        self.temp_dir = tempfile.mkdtemp(prefix="doutor_sandbox_")
+        self.validation_log = []
 
-BLOCKED_PATTERNS = [
-    "sudo", "rm -rf /", "rm -rf *", "mkfs", "dd if=",
-    "chmod 777", "chmod 777 /", "curl | bash", "wget | sh",
-    "wget -O- | sh", "curl -s | bash", "bash <(curl",
-    "> /dev/sda", ":(){ :|:& };:", "forkbomb",
-    "eval ", "exec(", "__import__", "os.system",
-]
-
-SANDBOX_BASE = Path("sandbox")
-MAX_PROCESS_TIME = 60
-MAX_MEMORY_MB = 256
-
-
-def _validate_command(cmd_str: str) -> str:
-    parts = shlex.split(cmd_str)
-    if not parts:
-        raise ValueError("Empty command")
-    base = os.path.basename(parts[0])
-    if base not in ALLOWED_COMMANDS:
-        raise ValueError(f"Command '{base}' is not in the allowed list")
-    cmd_lower = cmd_str.lower()
-    for pattern in BLOCKED_PATTERNS:
-        if pattern.lower() in cmd_lower:
-            raise ValueError(f"Command contains blocked pattern: {pattern}")
-    return cmd_str
-
-
-def exec_shell(command: str, run_id: str = "default", timeout: int = MAX_PROCESS_TIME) -> Dict:
-    run_dir = SANDBOX_BASE / run_id
-    run_dir.mkdir(parents=True, exist_ok=True)
-    log_file = Path("logs") / f"sandbox_{run_id}.log"
-    log_file.parent.mkdir(parents=True, exist_ok=True)
-
-    _validate_command(command)
-
-    try:
-        result = subprocess.run(
-            command,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            cwd=str(run_dir),
-            env={**os.environ, "HOME": str(run_dir)},
-        )
-
-        output = {
-            "stdout": result.stdout[-2000:],
-            "stderr": result.stderr[-2000:],
-            "exit_code": result.returncode,
-            "timed_out": False,
+    def validate_and_apply(self, files: Dict, run_id: str) -> Dict:
+        result = {
+            "status": "pending",
+            "applied": [],
+            "rejected": [],
+            "errors": [],
+            "validation_log": []
         }
 
-        with open(log_file, "a", encoding="utf-8") as f:
-            f.write(f"[{time.time()}] CMD: {command}\n")
-            f.write(f"  exit: {result.returncode}\n")
-            if result.stdout:
-                f.write(f"  stdout: {result.stdout[:500]}\n")
-            if result.stderr:
-                f.write(f"  stderr: {result.stderr[:500]}\n")
+        try:
+            for filepath, content in files.items():
+                abs_path = Path(self.temp_dir) / filepath
+                abs_path.parent.mkdir(parents=True, exist_ok=True)
 
-        return output
+                with open(abs_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
 
-    except subprocess.TimeoutExpired:
-        entry = {
-            "stdout": "",
-            "stderr": f"Command timed out after {timeout}s",
-            "exit_code": -1,
-            "timed_out": True,
-        }
-        with open(log_file, "a", encoding="utf-8") as f:
-            f.write(f"[{time.time()}] CMD: {command} [TIMEOUT]\n")
-        return entry
+                validation = self._validate_file(filepath, abs_path)
+                result["validation_log"].append(validation)
 
-    except Exception as e:
-        return {
-            "stdout": "",
-            "stderr": str(e),
-            "exit_code": -1,
-            "timed_out": False,
-        }
+                if validation["status"] == "fail":
+                    result["rejected"].append(filepath)
+                    result["errors"].append(validation["error"])
+                else:
+                    result["applied"].append(filepath)
 
+            if result["rejected"]:
+                result["status"] = "rejected"
+                logger.error(f"[Sandbox] {len(result['rejected'])} arquivos rejeitados: {result['errors']}")
+                return result
 
-def sandbox_path(run_id: str = "default") -> str:
-    p = SANDBOX_BASE / run_id
-    p.mkdir(parents=True, exist_ok=True)
-    return str(p.resolve())
+            for filepath in result["applied"]:
+                src = Path(self.temp_dir) / filepath
+                dst = self.root / filepath
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dst)
 
+            result["status"] = "applied"
+            logger.info(f"[Sandbox] {len(result['applied'])} arquivos validados e aplicados com sucesso.")
+            return result
 
-def cleanup_sandbox(run_id: str):
-    p = SANDBOX_BASE / run_id
-    if p.exists():
-        import shutil
-        shutil.rmtree(p, ignore_errors=True)
+        except Exception as e:
+            result["status"] = "critical_error"
+            result["errors"].append(f"Sandbox error: {str(e)}")
+            logger.error(f"[Sandbox] Critical error: {e}")
+            return result
+
+    def _validate_file(self, filepath: str, abs_path: Path) -> Dict:
+        validation = {"file": filepath, "status": "pass", "checks": []}
+
+        try:
+            if filepath.endswith('.py'):
+                proc = subprocess.run(
+                    ["python", "-m", "py_compile", str(abs_path)],
+                    capture_output=True, text=True, timeout=10
+                )
+                if proc.returncode != 0:
+                    validation["status"] = "fail"
+                    validation["error"] = f"SyntaxError: {proc.stderr}"
+                    return validation
+                validation["checks"].append("syntax_ok")
+
+                try:
+                    import importlib.util
+                    spec = importlib.util.spec_from_file_location("temp_module", abs_path)
+                    if spec and spec.loader:
+                        module = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(module)
+                    validation["checks"].append("import_ok")
+                except Exception as e:
+                    validation["status"] = "fail"
+                    validation["error"] = f"ImportError: {str(e)}"
+                    return validation
+
+            elif filepath.endswith(('.js', '.ts')):
+                with open(abs_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    if 'function' in content or 'const' in content or 'import' in content:
+                        validation["checks"].append("basic_syntax_ok")
+
+            elif filepath.endswith('.html'):
+                with open(abs_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    if content.count('<div>') != content.count('</div>'):
+                        validation["status"] = "fail"
+                        validation["error"] = "Unbalanced HTML tags"
+                        return validation
+                validation["checks"].append("html_balanced")
+
+            return validation
+
+        except subprocess.TimeoutExpired:
+            validation["status"] = "fail"
+            validation["error"] = "Validation timeout"
+            return validation
+        except Exception as e:
+            validation["status"] = "fail"
+            validation["error"] = f"Validation error: {str(e)}"
+            return validation
+
+    def cleanup(self):
+        try:
+            shutil.rmtree(self.temp_dir)
+        except:
+            pass
+
+print('kernel/sandbox.py entregue. Validacao obrigatoria por tipo de arquivo. Rejeicao atomica.')

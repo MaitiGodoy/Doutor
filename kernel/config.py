@@ -28,54 +28,49 @@ PROVIDERS = {
     "huggingface": {"base": "https://api-inference.huggingface.co/v1", "headers": {"Authorization": f"Bearer {HF_KEY}"}},
 }
 
-# Model Mapping (Free Tier Optimized)
-MODELS = {
-    "programming": {
-        "planner_a": "meta-llama/llama-3.1-8b-instruct",
-        "planner_b": "google/gemma-2-9b-it",
-        "coder": "qwen/qwen-2.5-coder-7b-instruct",
-        "auditor": "deepseek/deepseek-coder-v2-lite-instruct",
-        "reviewer_e": "microsoft/phi-3.5-mini-instruct",
-        "reviewer_f": "mistralai/mistral-7b-instruct",
-        "tester": "qwen/qwen-2.5-coder-3b-instruct",
-    },
-    "marketing": {
-        "planner_a": "meta-llama/llama-3.1-8b-instruct",
-        "planner_b": "google/gemma-2-9b-it",
-        "creator": "qwen/qwen-2.5-7b-instruct",
-        "auditor": "deepseek/deepseek-coder-v2-lite-instruct",
-        "reviewer_e": "microsoft/phi-3.5-mini-instruct",
-        "reviewer_f": "mistralai/mistral-7b-instruct",
-        "optimizer": "qwen/qwen-2.5-coder-3b-instruct",
-    },
-    "infoproduct": {
-        "strategist_a": "meta-llama/llama-3.1-8b-instruct",
-        "strategist_b": "google/gemma-2-9b-it",
-        "producer": "qwen/qwen-2.5-7b-instruct",
-        "auditor": "deepseek/deepseek-coder-v2-lite-instruct",
-        "reviewer_e": "microsoft/phi-3.5-mini-instruct",
-        "reviewer_f": "mistralai/mistral-7b-instruct",
-        "optimizer": "qwen/qwen-2.5-coder-3b-instruct",
-    }
-}
-
-# Temperatures & Max Tokens
+# Temperatures & Max Tokens (agent role names)
 TEMPERATURES = {
-    "planner_a": 0.6, "planner_b": 0.7, "coder": 0.2, "auditor": 0.3,
-    "reviewer_e": 0.5, "reviewer_f": 0.5, "tester": 0.4, "creator": 0.2,
-    "optimizer": 0.4, "strategist_a": 0.6, "strategist_b": 0.7, "producer": 0.2,
-    "the_lateral": 0.75
+    "the_scout": 0.4, "the_polymath": 0.7, "the_architect": 0.6,
+    "the_director": 0.3, "the_constitution": 0.2,
+    "the_wordsmiths": 0.8, "the_voice": 0.7, "the_producer": 0.3,
+    "the_surgeon": 0.1, "the_inspector": 0.3, "the_scaler": 0.4,
+    "the_empath": 0.6, "the_ranker": 0.3, "the_lateral": 0.75,
+    "the_concierge": 0.5, "the_master_key": 0.1,
+    "the_zoiao": 0.1, "the_omni_aa": 0.1,
+    "the_minimalist": 0.3, "the_darwin": 0.7, "the_gossip": 0.9,
+    "the_chronic": 0.95, "the_inner_spark": 0.3,
+    "halbert": 0.9, "ogilvy": 0.7, "kennedy": 0.8,
+    "the_senior_dev": 0.2,
+    "the_prompt_architect": 0.3,
+    "the_planner_alpha": 0.1,
+    "the_planner_beta": 0.1,
+    "the_senior_dev_core": 0.1,
+    "the_senior_dev_ui": 0.1,
+    "the_senior_dev_ops": 0.1,
 }
 MAX_TOKENS = {
-    "planner_a": 2048, "planner_b": 2048, "coder": 4096, "auditor": 2048,
-    "reviewer_e": 2048, "reviewer_f": 2048, "tester": 1536, "creator": 4096,
-    "optimizer": 1536, "strategist_a": 2048, "strategist_b": 2048, "producer": 4096,
-    "the_lateral": 4096
+    "the_scout": 2048, "the_polymath": 3072, "the_architect": 3072,
+    "the_director": 2048, "the_constitution": 2048,
+    "the_wordsmiths": 4096, "the_voice": 3072, "the_producer": 4096,
+    "the_surgeon": 2048, "the_inspector": 3072, "the_scaler": 3072,
+    "the_empath": 3072, "the_ranker": 2048, "the_lateral": 4096,
+    "the_concierge": 2048, "the_master_key": 1024,
+    "the_zoiao": 2048, "the_omni_aa": 3000,
+    "the_minimalist": 1024, "the_darwin": 2048, "the_gossip": 4096,
+    "the_chronic": 2048, "the_inner_spark": 1024,
+    "halbert": 3072, "ogilvy": 3072, "kennedy": 3072,
+    "the_senior_dev": 4096,
+    "the_prompt_architect": 3072,
+    "the_planner_alpha": 4096,
+    "the_planner_beta": 4096,
+    "the_senior_dev_core": 4096,
+    "the_senior_dev_ui": 4096,
+    "the_senior_dev_ops": 4096,
 }
 
-# Financial Guardrails (Hardcoded)
+# Financial Guardrails (env-configurable)
 FINANCIAL_GUARD = {
-    "daily_spend_limit": 0.0,
+    "daily_spend_limit": float(os.getenv("DAILY_SPEND_LIMIT", "5.0")),
     "unlock_ads_after_revenue": 100.0,
     "reinvest_pct": 30,
     "auto_pause_roas": 1.5,

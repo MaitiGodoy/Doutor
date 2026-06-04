@@ -129,7 +129,7 @@ class BaseAgent:
 
     async def _call_llm(self, system: str, prompt: str, model: str = None) -> str:
         from kernel.llm_client import call_llm
-        result = await call_llm(self.role, system, prompt, model=model or self.model)
+        result = await call_llm(self.role, system, prompt)
         if isinstance(result, dict):
             return result.get("content", result.get("text", json.dumps(result)))
         return str(result)

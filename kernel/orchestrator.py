@@ -11,15 +11,34 @@ from kernel.token_manager import TokenManager
 from kernel.provider_router import ProviderRouter
 from kernel.config import FINANCIAL_GUARD, PRODUCTION
 from kernel.concierge import concierge_explain
+from kernel.consensus import ConsensusEngine
+from kernel.audit_logger import AuditLogger
+from kernel.darwin_loop import start_darwin_background
 from kernel.notify import escalate_notification
 from kernel.lateral_agent import LateralAgent
-from kernel.sandbox import exec_shell
+
 from kernel.budget_dashboard import generate_dashboard
 from kernel.health import health_status
-from agents.briefing_agent import BriefingAgent
+from agents.scout_agent import ScoutAgent
 from agents.dual_output_agent import DualOutputAgent
-from agents.governance import ConstitutionAgent, SurgeonAgent
-from agents.master_key import MasterKeyAgent
+from agents.governance import ConstitutionAgent
+from agents.surgeon_agent import SurgeonAgent
+from agents.master_key_agent import MasterKeyAgent
+from agents.inner_spark_agent import InnerSparkAgent
+from agents.omni_aa_agent import OmniAaAgent
+from agents.director_agent import DirectorAgent
+from agents.senior_dev_agent import SeniorDevAgent
+from agents.minimalist_agent import MinimalistAgent
+from agents.darwin_agent import DarwinAgent
+from agents.gossip_agent import GossipAgent
+from agents.prompt_architect_agent import PromptArchitectAgent
+from agents.planner_alpha_agent import PlannerAlphaAgent
+from agents.planner_beta_agent import PlannerBetaAgent
+from agents.senior_dev_core_agent import SeniorDevCoreAgent
+from agents.senior_dev_ui_agent import SeniorDevUiAgent
+from agents.senior_dev_ops_agent import SeniorDevOpsAgent
+from agents.council_protocol import CouncilProtocol
+from kernel.resilience_engine import ResilienceEngine
 from departments.seo_engine import SEOEngine
 from departments.workflow_engine import WorkflowEngine
 from meta.team_forge import TeamForge
@@ -29,21 +48,36 @@ import kernel.mcp_bridge as mcp_bridge
 logger = logging.getLogger("doutor.orchestrator")
 
 AGENT_ROLES_MAP = {
-    "the_scout": {"class": BriefingAgent, "config_key": "briefing"},
-    "the_polymath": {"class": None, "config_key": "intelligence"},
-    "the_architect": {"class": None, "config_key": "strategy"},
-    "the_constitution": {"class": ConstitutionAgent, "config_key": "constitution"},
-    "the_surgeon": {"class": SurgeonAgent, "config_key": "surgeon"},
-    "the_wordsmiths": {"class": None, "config_key": "creation"},
-    "the_inspector": {"class": None, "config_key": "quality"},
-    "the_scaler": {"class": None, "config_key": "optimization"},
-    "the_empath": {"class": None, "config_key": "design"},
-    "the_voice": {"class": None, "config_key": "voice"},
-    "the_concierge": {"class": None, "config_key": "interface"},
-    "the_producer": {"class": DualOutputAgent, "config_key": "dual_output"},
-    "the_ranker": {"class": None, "config_key": "seo"},
-    "the_master_key": {"class": MasterKeyAgent, "config_key": "master_key"},
-    "the_lateral": {"class": LateralAgent, "config_key": "lateral"},
+    "the_scout":       {"class": ScoutAgent, "config_key": "briefing"},
+    "the_polymath":    {"class": None, "config_key": "intelligence"},
+    "the_architect":   {"class": None, "config_key": "strategy"},
+    "the_director":    {"class": DirectorAgent, "config_key": "executive"},
+    "the_constitution":{"class": ConstitutionAgent, "config_key": "constitution"},
+    "the_wordsmiths":  {"class": None, "config_key": "creation"},
+    "the_senior_dev":  {"class": SeniorDevAgent, "config_key": "senior_dev"},
+    "the_voice":       {"class": None, "config_key": "voice"},
+    "the_producer":    {"class": DualOutputAgent, "config_key": "dual_output"},
+    "the_surgeon":     {"class": SurgeonAgent, "config_key": "surgeon"},
+    "the_inspector":   {"class": None, "config_key": "quality"},
+    "the_scaler":      {"class": None, "config_key": "optimization"},
+    "the_empath":      {"class": None, "config_key": "design"},
+    "the_ranker":      {"class": None, "config_key": "seo"},
+    "the_lateral":     {"class": LateralAgent, "config_key": "lateral"},
+    "the_concierge":   {"class": None, "config_key": "interface"},
+    "the_master_key":  {"class": MasterKeyAgent, "config_key": "master_key"},
+    "the_zoiao":       {"class": None, "config_key": "zoiao"},
+    "the_omni_aa":     {"class": OmniAaAgent, "config_key": "omni_aa"},
+    "the_minimalist":  {"class": MinimalistAgent, "config_key": "minimalist"},
+    "the_darwin":      {"class": DarwinAgent, "config_key": "darwin"},
+    "the_gossip":      {"class": GossipAgent, "config_key": "gossip"},
+    "the_chronic":     {"class": None, "config_key": "chronic"},
+    "the_inner_spark":      {"class": InnerSparkAgent, "config_key": "inner_spark"},
+    "the_prompt_architect": {"class": PromptArchitectAgent, "config_key": "prompt_architect"},
+    "the_planner_alpha":    {"class": PlannerAlphaAgent, "config_key": "planner_alpha"},
+    "the_planner_beta":     {"class": PlannerBetaAgent, "config_key": "planner_beta"},
+    "the_senior_dev_core":  {"class": SeniorDevCoreAgent, "config_key": "senior_dev_core"},
+    "the_senior_dev_ui":    {"class": SeniorDevUiAgent, "config_key": "senior_dev_ui"},
+    "the_senior_dev_ops":   {"class": SeniorDevOpsAgent, "config_key": "senior_dev_ops"},
 }
 
 
@@ -64,6 +98,7 @@ class AntimatterOrchestrator:
         self.workflow_engine = WorkflowEngine()
         self.team_forge = TeamForge()
         self.inner_spark = InnerSpark()
+        self.root_path = str(Path(__file__).parent.parent)
 
     def initialize(self):
         roles_dir = Path("agents/roles")
@@ -88,7 +123,7 @@ class AntimatterOrchestrator:
         if "the_master_key" in self.agents:
             self.master_key = self.agents["the_master_key"]
         elif not self.master_key:
-            from agents.master_key import MasterKeyAgent
+            from agents.master_key_agent import MasterKeyAgent
             mk_config = {"role": "the_master_key", "trust_level": "full", "auto_approve_all": True,
                          "silent_execution": True, "snapshot_dir": "cache/snapshots",
                          "blacklisted_commands": ["rm -rf /", ":(){:|:&};:", "mkfs", "dd if=/dev/zero"],
@@ -103,7 +138,14 @@ class AntimatterOrchestrator:
         self.agents["the_lateral"] = self.lateral_agent
         self.agents["the_ranker"] = self.seo_engine
 
+        self.consensus_engine = ConsensusEngine(self.provider_router)
+        self.audit_logger = AuditLogger()
+
         logger.info(f"Orchestrator initialized with {len(self.agents)} agents")
+
+    def start_background_tasks(self):
+        loop = asyncio.get_event_loop()
+        loop.create_task(start_darwin_background(self))
 
     def detect_module(self) -> str:
         txt = json.dumps(self.input).lower()
@@ -111,155 +153,209 @@ class AntimatterOrchestrator:
             return "programming"
         if any(k in txt for k in ["seo", "ads", "copy", "post", "funnel", "keywords", "ctr", "roas", "viral"]):
             return "marketing"
-        if any(k in txt for k in ["infoproduto", "curso", "checkout", "lms", "lançamento", "afiliados", "pre-venda"]):
+        if any(k in txt for k in ["infoproduto", "curso", "checkout", "lms", "lanÃ§amento", "afiliados", "pre-venda"]):
             return "infoproduct"
         return "multi"
 
     async def execute(self, input_data: Dict = None) -> Dict:
+        start = time.time()
+        run_id = self.run_id
+        self.current_run_id = run_id
         data = input_data or self.input
-        self.state_mgr.save_run(self.run_id, {"status": "running", "module": self.module, "started_at": self.started_at})
-        self.state_mgr.log_audit("orchestrator", "execute_start", self.run_id, self.module)
 
-        # 1. Briefing
-        briefing_agent = self.agents.get("the_scout") or BriefingAgent()
-        briefing = await briefing_agent.collect_briefing(data)
-        self.state_mgr.save_checkpoint(self.run_id, "briefing", briefing)
-        self.artifacts["briefing"] = briefing
-
-        # 2. TeamForge
-        team_context = self.team_forge.generate_context(briefing.get("briefing", data))
-        self.artifacts["team_context"] = team_context
-
-        # 3. Estratégia (Governance Gate 1)
-        constitution = self.agents.get("the_constitution") or ConstitutionAgent()
-        gov1 = await constitution.validate({"module": self.module, "approach": data, "deliverables": [briefing], "timeline": "immediate"})
-        self.state_mgr.save_checkpoint(self.run_id, "governance_1", gov1)
-        self.artifacts["governance_1"] = gov1
-        if not gov1.get("approved"):
-            return await self._abort("governance_1_blocked", gov1)
-
-        # 4. Criação
-        if self.module in ("marketing", "infoproduct"):
-            from kernel.agents import run_neuro_copy
-            neuro = await run_neuro_copy(json.dumps(data))
-            self.artifacts["neuro_copy"] = neuro
-        elif self.module == "programming":
-            from kernel.agents import run_agent
-            code = await run_agent("coder", json.dumps(data), data)
-            self.artifacts["code"] = code
-        else:
-            from kernel.agents import run_agent, run_neuro_copy
-            task1 = asyncio.create_task(run_agent("planner_a", json.dumps(data)))
-            task2 = asyncio.create_task(run_agent("planner_b", json.dumps(data)))
-            pa, pb = await asyncio.gather(task1, task2)
-            consensus = {"approach": pa.get("approach") or pb.get("approach"), "merged": {**pa, **pb}}
-            neuro = await run_neuro_copy(json.dumps(consensus))
-            self.artifacts["neuro_copy"] = neuro
-            self.artifacts["consensus"] = consensus
-
-        self.state_mgr.save_checkpoint(self.run_id, "creation", self.artifacts)
-
-        # 5. Governance Gate 2 — Surgeon review
-        surgeon_safe = True
-        for key, val in self.artifacts.items():
-            if isinstance(val, dict) and val.get("status") == "error":
-                surgeon_safe = False
-                break
-        self.artifacts["governance_2"] = {"approved": surgeon_safe, "violations": [] if surgeon_safe else [{"type": "artifact_error", "severity": "high"}]}
-
-        # 6. Voice Layer
-        voice_agent = self.agents.get("the_voice")
-        if voice_agent and self.artifacts.get("neuro_copy"):
-            try:
-                voiced = await voice_agent.execute(str(self.artifacts["neuro_copy"]))
-                self.artifacts["voice_output"] = voiced
-            except Exception:
-                pass
-
-        # 7. SEO Engine
-        seo_result = self.seo_engine.optimize_site_seo_and_virality(".")
-        self.artifacts["seo_optimization"] = seo_result
-        self.state_mgr.save_checkpoint(self.run_id, "seo", seo_result)
-
-        # 8. Dual Output
-        dual_agent = self.agents.get("the_producer") or DualOutputAgent()
         try:
-            target_dir = data.get("output_dir", "output/html")
-            dual = await dual_agent.generate_dual_output(self.artifacts, target_dir)
-            self.artifacts["dual_output"] = dual
-        except Exception as e:
-            self.artifacts["dual_output"] = {"status": "error", "error": str(e)}
+            # 1. SNAPSHOT DE SEGURANCA (OBRIGATORIO)
+            logger.info(f"[Orchestrator] {run_id} iniciado. Criando snapshot de seguranca...")
+            snapshot_path = await self.agents["the_master_key"].create_full_backup(run_id)
 
-        # 9. Qualidade / Compliance
-        try:
-            compliance_scan = await self.lateral_agent.run_defensive_validation(
-                data.get("output_dir", "."), "comprehensive"
+            # 2. BRIEFING + PROMPT ARCHITECT
+            raw_briefing = data.get("user_input", "")
+            architect = self.agents.get("the_prompt_architect")
+            if not architect:
+                optimized = {"optimized_context": data, "constraints": []}
+            else:
+                optimized = await architect.optimize_context(raw_briefing)
+                if isinstance(optimized, dict) and optimized.get("status") == "error":
+                    optimized = {"optimized_context": data, "constraints": [], "note": "llm_fallback"}
+
+            # 3. CONSELHO OBRIGATORIO (GATE 0)
+            logger.info("[Orchestrator] Convocando Conselho para validacao do plano...")
+            council = CouncilProtocol(self.agents)
+            council_result = await council.convene({"briefing": optimized}, "planning")
+
+            if council_result["status"] == "vetoed":
+                logger.warning(f"[Orchestrator] Conselho vetou o plano: {council_result['reason']}")
+                return {
+                    "status": "blocked",
+                    "reason": "council_veto",
+                    "details": council_result,
+                    "run_id": run_id
+                }
+
+            # 4. PLANNERS (Alpha + Beta em paralelo)
+            plan_a, plan_b = await asyncio.gather(
+                self.agents["the_planner_alpha"].generate_plan(optimized),
+                self.agents["the_planner_beta"].generate_plan(optimized),
+                return_exceptions=True
             )
-            self.artifacts["compliance_scan"] = compliance_scan
+
+            if isinstance(plan_a, Exception) or isinstance(plan_b, Exception):
+                raise RuntimeError(f"Falha na geracao de planos: A={'ok' if not isinstance(plan_a, Exception) else plan_a}, B={'ok' if not isinstance(plan_b, Exception) else plan_b}")
+
+            selected_plan = plan_b if (isinstance(plan_b, dict) and plan_b.get("risk_level") == "low") else plan_a
+
+            # 5. DEVS EM CONSENSO (Sequencial, nao paralelo)
+            logger.info("[Orchestrator] Dev 1 (Core) gerando base...")
+            dev1_output = await self.agents["the_senior_dev_core"].generate_code(selected_plan, optimized)
+
+            logger.info("[Orchestrator] Dev 2 (UI) revisando e sugerindo...")
+            dev2_feedback = await self.agents["the_senior_dev_ui"].review_and_suggest(dev1_output.get("files", {}))
+
+            logger.info("[Orchestrator] Dev 3 (Ops) consolidando versao final...")
+            final_output = await self.agents["the_senior_dev_ops"].finalize_code(dev1_output, dev2_feedback)
+
+            # 6. SANDBOX VALIDATION (OBRIGATORIO E BLOQUEANTE)
+            logger.info("[Orchestrator] Validando no Sandbox...")
+            from kernel.sandbox import Sandbox
+            sandbox = Sandbox(self.root_path)
+            validation_result = sandbox.validate_and_apply(final_output.get("files", {}), run_id)
+
+            if validation_result["status"] == "rejected":
+                logger.error(f"[Orchestrator] Sandbox rejeitou codigo: {validation_result['errors']}")
+                await self.agents["the_master_key"].restore_full_backup(snapshot_path)
+                return {
+                    "status": "blocked",
+                    "reason": "sandbox_rejection",
+                    "errors": validation_result["errors"],
+                    "run_id": run_id
+                }
+
+            # 7. GATES 3 & 4 (Lateral + Inspector + Constitution)
+            lateral_check = await self.lateral_agent.run_defensive_validation(self.root_path, "comprehensive")
+            if lateral_check.get("critical"):
+                await self.agents["the_master_key"].restore_full_backup(snapshot_path)
+                return {"status": "blocked", "reason": "security_veto", "details": lateral_check}
+
+            # 8. EVAL HARNESS (METRICA DE QUALIDADE)
+            from kernel.eval_harness import EvalHarness
+            eval_harness = EvalHarness()
+            quality = eval_harness.validate_output(final_output, "code")
+
+            if quality["score"] < 0.8:
+                logger.warning(f"[Orchestrator] Qualidade baixa: {quality['score']}. Pausando para revisao humana.")
+                self.state_mgr.save_run(run_id, {"status": "awaiting_human", "quality": quality})
+                return {"status": "paused", "reason": "low_quality", "quality": quality, "run_id": run_id}
+
+            # 9. PERSISTENCIA & OBSERVABILIDADE
+            from kernel.observability import ObservabilityDB
+            obs = ObservabilityDB()
+            obs.ingest_jsonl()
+
+            from kernel.semantic_memory import SemanticMemory
+            memory = SemanticMemory()
+            memory.store(run_id, f"Run {run_id} completed. Quality: {quality['score']}", ["success", "code"])
+
+            # 10. DARWIN (BACKGROUND, NAO BLOQUEANTE)
+            asyncio.create_task(self.agents["the_darwin"].analyze_and_mutate())
+
+            return {
+                "status": "success",
+                "run_id": run_id,
+                "quality_score": quality["score"],
+                "artifacts": validation_result["applied"],
+                "execution_time_ms": int((time.time() - start) * 1000),
+                "council_approved": True,
+                "sandbox_validated": True
+            }
+
         except Exception as e:
-            self.artifacts["compliance_scan"] = {"error": str(e), "findings": [], "recommendation": "approve"}
-
-        # 10. Governance Gate 3
-        surgeon = self.agents.get("the_surgeon") or SurgeonAgent()
-        gov3 = await surgeon.validate_change(
-            json.dumps(data), "pipeline", str(self.input), json.dumps(self.artifacts)
-        )
-        self.artifacts["governance_3"] = gov3
-
-        # 11. Otimização
-        from kernel.agents import run_agent as generic_agent
-        try:
-            optimization = await generic_agent("optimizer", json.dumps(self.artifacts), self.artifacts)
-            self.artifacts["optimization"] = optimization
-        except Exception:
-            pass
-
-        # 12. Design
-        if self.artifacts.get("dual_output", {}).get("files", {}).get("desktop"):
+            logger.error(f"[Orchestrator] Falha critica: {e}", exc_info=True)
             try:
-                design_result = self.seo_engine.optimize_file(
-                    self.artifacts["dual_output"]["files"]["desktop"]
-                )
-                self.artifacts["design_optimization"] = design_result
-            except Exception:
+                if snapshot_path:
+                    await self.agents["the_master_key"].restore_full_backup(snapshot_path)
+            except:
                 pass
+            return {"status": "critical_fail", "error": str(e), "run_id": run_id}
+        executed_phases.append({"name": "gate3_quality", "status": "approved" if quality_vote.accepted else "blocked", "conflicts": quality_vote.conflicts})
 
-        # 13. Governance Gate 4
-        gov4 = await constitution.validate(self.artifacts, {"phase": "final"})
-        self.artifacts["governance_4"] = gov4
-        self.state_mgr.save_checkpoint(self.run_id, "governance_4", gov4)
+        # 13. Gate 4: Final consensus (Constitution + Surgeon + Inspector)
+        final_vote = await self.consensus_engine.decide(
+            question="Should this project be finalized and deployed?",
+            context={"artifacts": self.artifacts, "phases": executed_phases},
+            agent_roles=["the_constitution", "the_surgeon", "the_inspector"],
+            min_votes=3,
+        )
+        self.artifacts["governance_4"] = {
+            "approved": final_vote.accepted,
+            "recommendation": final_vote.final_recommendation,
+            "conflicts": final_vote.conflicts,
+            "escalated": final_vote.escalated,
+        }
+        executed_phases.append({"name": "gate4_final", "status": "approved" if final_vote.accepted else "blocked", "conflicts": final_vote.conflicts})
+        if not final_vote.accepted:
+            return await self._abort("gate4_blocked", {"consensus": final_vote.final_recommendation, "conflicts": final_vote.conflicts})
 
         # 14. Concierge
         try:
             explanation = await concierge_explain(self.artifacts)
             self.artifacts["concierge"] = explanation
+            executed_phases.append({"name": "concierge", "status": "success"})
         except Exception:
-            pass
+            executed_phases.append({"name": "concierge", "status": "partial"})
 
-        # 15. Inner Spark
-        try:
-            spark = await self.inner_spark.observe_and_learn(self.artifacts)
-            self.artifacts["inner_spark"] = spark
-        except Exception:
-            pass
+        # 15. Inner Spark aprende com a execução
+        inner_spark = self.agents.get("the_inner_spark")
+        if inner_spark and hasattr(inner_spark, "analyze_execution"):
+            try:
+                spark_log = {"run_id": run_id, "phases": executed_phases, "total_tokens": self.token_mgr.get_total_used(), "duration_ms": int((time.time() - start_time) * 1000)}
+                spark_result = await inner_spark.analyze_execution(spark_log)
+                self.artifacts["inner_spark"] = spark_result
+                executed_phases.append({"name": "inner_spark", "status": "analyzed"})
+            except Exception:
+                executed_phases.append({"name": "inner_spark", "status": "fail"})
+
+        # 16. Eval Harness
+        from kernel.eval_harness import EvalHarness
+        eval_harness = EvalHarness()
+        run_evals = [
+            eval_harness.validate_output(optimized, "briefing"),
+            eval_harness.validate_output(final_output, "code"),
+            eval_harness.validate_output(selected_plan, "plan")
+        ]
+        quality = eval_harness.aggregate_metrics(run_evals)
+        self.artifacts["quality_metrics"] = quality
+
+        # 17. Human-in-the-Loop (pausa se qualidade baixa ou gate crítico)
+        if quality["overall_status"] == "review_needed":
+            logger.warning("[Orchestrator] Qualidade abaixo do threshold. Aguardando aprovacao humana...")
+            self.state_mgr.save_run(run_id, {"status": "awaiting_human", "quality": quality, "paused_at": time.time()})
+            return {"status": "paused", "reason": "human_review_required", "quality": quality}
+
+        # 18. Persistencia & Observabilidade
+        from kernel.observability import ObservabilityDB
+        obs = ObservabilityDB()
+        obs.ingest_jsonl()
+
+        from kernel.semantic_memory import SemanticMemory
+        memory = SemanticMemory()
+        memory.store(run_id, f"Run {run_id} completed. Quality: {quality['avg_quality_score']}", ["auto", "code", "plan"])
+
+        # 19. Darwin (background, nao bloqueante)
+        asyncio.create_task(self.agents["the_darwin"].analyze_and_mutate())
 
         ended_at = time.time()
-        status = "completed" if not any(
-            v.get("status") == "error" for v in self.artifacts.values() if isinstance(v, dict)
-        ) else "partial"
+        status = "completed" if not any(p.get("status") in ("blocked", "fail") for p in executed_phases) else "partial"
 
-        self.state_mgr.save_run(self.run_id, {
-            "status": status, "module": self.module,
-            "started_at": self.started_at, "ended_at": ended_at,
-            "tokens_used": 0, "cost_estimate": 0.0,
-            "metadata": {"artifact_count": len(self.artifacts)},
-        })
-        self.state_mgr.log_audit("orchestrator", "execute_complete", self.run_id, status)
+        self.state_mgr.save_run(run_id, {"status": status, "module": self.module, "started_at": start_time, "ended_at": ended_at, "tokens_used": self.token_mgr.get_total_used(), "cost_estimate": 0.0, "metadata": {"artifact_count": len(self.artifacts), "phase_count": len(executed_phases)}})
+        self.state_mgr.log_audit("orchestrator", "execute_complete", run_id, status)
 
         return {
-            "metadata": {"run_id": self.run_id, "module": self.module, "artifact_count": len(self.artifacts)},
-            "deliverables": self.artifacts,
             "status": status,
+            "run_id": run_id,
+            "quality_score": quality["avg_quality_score"],
+            "artifacts": self.artifacts,
+            "phases": executed_phases,
+            "execution_time_ms": int((time.time() - start_time) * 1000)
         }
 
     async def _abort(self, reason: str, detail: Dict) -> Dict:
@@ -270,9 +366,11 @@ class AntimatterOrchestrator:
     async def safe_execute_tool(self, tool_name: str, payload: Dict) -> Dict:
         if self.master_key:
             return await self.master_key.bypass_confirmation_loop(tool_name, payload)
-        return {"status": "fallback", "message": "Master Key não inicializada", "tool": tool_name}
+        return {"status": "fallback", "message": "Master Key nÃ£o inicializada", "tool": tool_name}
 
     async def run_with_concierge(self) -> Dict:
+        if not self.agents:
+            self.initialize()
         result = await self.execute()
 
         try:
@@ -306,3 +404,4 @@ class AntimatterOrchestrator:
             "health": health,
             "run_id": self.run_id,
         }
+
