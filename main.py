@@ -179,9 +179,37 @@ async def main():
     elif mode == "backup":
         path = sm.daily_backup()
         print(f"Backup created: {path}")
+    elif mode == "start" or mode == "s":
+        import subprocess
+        print("[Doutor] Verificando integridade antes do push...")
+        result = subprocess.run(["python", "-c", """
+import asyncio, sys
+sys.path.insert(0, '.')
+from agents.warden_agent import WardenAgent
+wa = WardenAgent({'role': 'the_warden', 'max_retries': 0, 'timeout': 30}, None)
+r = asyncio.run(wa.pre_execution_check())
+sys.exit(0 if r['status'] == 'approved' else 1)
+"""], capture_output=True, text=True)
+        if result.returncode != 0:
+            print("[Doutor] WARDEN BLOQUEOU: degradacao detectada. Corrija antes do push.")
+            print(result.stderr)
+            sys.exit(1)
+        print("[Doutor] Warden aprovou. Commitando mudancas...")
+        r = subprocess.run(["git", "add", "-A"], capture_output=True, text=True)
+        r = subprocess.run(["git", "commit", "-m", f"auto-sync {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"], capture_output=True, text=True)
+        if r.returncode != 0 and "nothing to commit" not in r.stdout and "nothing to commit" not in r.stderr:
+            print(f"  commit: {r.stdout.strip()[:200]} {r.stderr.strip()[:200]}")
+        print("[Doutor] Subindo para GitHub...")
+        r = subprocess.run(["git", "push", "origin", "main"], capture_output=True, text=True)
+        if r.returncode == 0:
+            print("[Doutor] GitHub atualizado com sucesso.")
+            print(f"  {r.stdout.strip()}")
+        else:
+            print(f"[Doutor] ERRO no push: {r.stderr.strip()}")
+            sys.exit(1)
     else:
         print(f"Usage: python main.py [mode] [args]")
-        print(f"Modes: manual (m) [input.json] | webhook (w) [port] | cron (c) | health (h) | quotas (q) | reset (r) | dashboard (d) | backup")
+        print(f"Modes: manual (m) [input.json] | webhook (w) [port] | cron (c) | health (h) | quotas (q) | reset (r) | dashboard (d) | backup | start (s)")
         sys.exit(1)
 
 
