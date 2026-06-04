@@ -1,0 +1,11 @@
+{
+    "role": "the_senior_dev_ops",
+    "system_prompt_file": "prompts/the_senior_dev_ops.md",
+    "temperature": 0.1,
+    "max_tokens": 4096,
+    "model": "qwen/qwen3-coder:free",
+    "fallback_model": "qwen/qwen3-32b",
+    "log_to": "logs/senior_dev_ops_audit.jsonl",
+    "max_retries": 3,
+    "timeout": 180
+}

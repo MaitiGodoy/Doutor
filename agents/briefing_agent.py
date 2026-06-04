@@ -24,7 +24,7 @@ DEFAULT_QUESTIONS = [
 
 class BriefingAgent(BaseAgent):
     def __init__(self, config: Dict = None, router=None):
-        super().__init__("the_scout", config or {}, router)
+        super().__init__("the_briefing", config or {}, router)
         self.questions = DEFAULT_QUESTIONS
         self.env_path = Path(".env")
 

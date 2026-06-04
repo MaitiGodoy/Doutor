@@ -1,0 +1,11 @@
+{
+    "role": "the_planner_alpha",
+    "system_prompt_file": "prompts/the_planner_alpha.md",
+    "temperature": 0.1,
+    "max_tokens": 4096,
+    "model": "meta-llama/llama-3.3-70b-instruct:free",
+    "fallback_model": "llama-3.3-70b-versatile",
+    "log_to": "logs/planner_alpha_audit.jsonl",
+    "max_retries": 3,
+    "timeout": 120
+}

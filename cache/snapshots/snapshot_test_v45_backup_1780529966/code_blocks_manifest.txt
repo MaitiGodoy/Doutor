@@ -1,0 +1,42 @@
+=== Code Block 0 (ini) ===
+Lines: 3128 to 3150
+Preceding Context:
+  3118: 
+  3119: Aqui está a implementação do sistema de controle de tokens e roteamento multi-provedor (OpenRouter, Groq e HuggingFace) do Antimatter Squad. Este sistema evita o consumo de tokens locais do host (Antigravity/Antimatter) para tarefas geradoras e faz fallback automático em caso de rate limit ou falha de conexão.
+  3120: 
+  3121: ---
+  3122: 
+  3123: ## 1. Configuração de Variáveis de Ambiente (`.env.antimatter`)
+  3124: 
+  3125: As chaves dos provedores externos são configuradas em ordem de prioridade. Se o OpenRouter falhar ou atingir o limite diário, o sistema faz fallback para o Groq, e depois para o HuggingFace.
+  3126: 
+  3127: [Ver arquivo completo](file:///C:/Users/User/qwen-coding-engine/.env.antimatter)
+
+=== Code Block 1 (python) ===
+Lines: 3159 to 3318
+Preceding Context:
+  3149: ANTIMATTER_TIMEOUT_SEC=120
+  3150: ```
+  3151: 
+  3152: ---
+  3153: 
+  3154: ## 2. Política de Isolamento de Tokens (`token_policy.py`)
+  3155: 
+  3156: A classe `TokenPolicyController` garante que requisições geradoras de conteúdo (que gastam muitos tokens) não usem os tokens locais do host. Se houver tentativa de usar o host para geração de conteúdo, uma exceção é disparada.
+  3157: 
+  3158: [Ver código original](file:///C:/Users/User/qwen-coding-engine/src/antimatter_squad/token_policy.py)
+
+=== Code Block 2 (python) ===
+Lines: 3327 to 3622
+Preceding Context:
+  3317: policy_controller = TokenPolicyController()
+  3318: ```
+  3319: 
+  3320: ---
+  3321: 
+  3322: ## 3. Roteador de Provedores e Rodízio (`provider_router.py`)
+  3323: 
+  3324: A classe `ProviderRouter` inicializa os clientes para cada provedor configurado e gerencia o envio de mensagens para o modelo associado ao papel/função ativa. Ela monitora o estado de saúde de cada API, detecta falhas (como erros 429 - rate limit) e desvia o tráfego para a próxima API da fila.
+  3325: 
+  3326: [Ver código original](file:///C:/Users/User/qwen-coding-engine/src/antimatter_squad/provider_router.py)
+

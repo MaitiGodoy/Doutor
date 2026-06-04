@@ -1,0 +1,202 @@
+{
+  "type": "g5x_technical_operational_analysis",
+  "target": "CRM G5X - Mesa de Credito Matriz para Consultoria Digital de Sucesso Fee para Aprovacao do GERIC na Caixa Economica Federal",
+  "product": {
+    "name": "GERIC FAST",
+    "description": "Consultoria digital de sucesso fee para aprovacao do GERIC (Gerenciamento de Risco de Credito) na Caixa Economica Federal",
+    "value_proposition": [
+      "Aprovacao em ~28 dias (acesso direto a Superintendencia/Matriz)",
+      "Alavancagem de até 5x o faturamento anual em credito estruturado",
+      "Risco Zero para o cliente: pagamento SOMENTE no êxito (success fee)",
+      "Zero custo de entrada G5X (regularizacao tecnica previa é repassada a terceiros a custo de mercado, sem margem G5X)"
+    ],
+    "model": "Mesa de Credito Matriz (nao somos correspondentes bancarios, nem despachantes). Operamos com Banca de Especialistas (Rating, Engenharia, Juridico)."
+  },
+  "pic_and_compliance": {
+    "ideal_customer": {
+      "segment": "Construtora Habitacional (MCMV ou SBPE)",
+      "min_annual_revenue": "R$ 5M (auditavel)",
+      "min_cnpj_age": "> 18 meses no ramo de construcao",
+      "partner_requirements": "Socios/Procuradores sem restricoes graves",
+      "motivation": "Desejo real de alavancagem e escala"
+    },
+    "compliance_rules": {
+      "prohibited": [
+        "Citar valores de honorarios, setup ou success fee publicamente",
+        "Sugerir parcelamento (pagamento e à vista, em até 48h pos-aprovacao/conferencia na agencia)",
+        "Garantir aprovacao ou prazos fixos ('30 dias garantidos')",
+        "Falar mal da Caixa, gerentes ou normativos (posicionar como 'complemento estrategico')",
+        "Usar linguagem agressiva ou promessas vazias"
+      ],
+      "required": [
+        "Posicionar G5X como 'Mesa de Credito Matriz' com acesso especializado",
+        "Enfatizar risco zero (success fee) e transparencia absoluta",
+        "Validar PIC antes de avancar (qualificacao reversa)",
+        "Usar tom consultivo, tecnico e direto (estilo Challenger Sales)",
+        "Focar em ROI, escala e mitigacao de risco sistemico"
+      ]
+    }
+  },
+  "architecture": {
+    "deepseek_role": "A MENTE (Raciocinio & Engajamento) - Gera mensagens outbound, quebra objecoes, adapta tom, aplica SPIN/Challenger, cria variacoes de copy anti-spam, analisa contexto do lead + historico + conhecimento processado",
+    "groq_role": "OS BRAÇOS (Execucao & CRM) - Move cards no Kanban, atualiza estagios, registra logs, processa PDFs da aba Conhecimento, extrai insights, popula base, agenda reunioes via Calendly, dispara webhooks, gerencia limites diarios, conversa com modulos internos",
+    "doctor_role": "ORQUESTRA - Monitora performance, ajusta cadencia, cobra metricas, reporta gaps, substitui os 3 MCPs antigos (CRM, Comms, Memory) assumindo gestao unificada de contexto, acoes e memoria de longo prazo"
+  },
+  "sales_methodology": {
+    "frameworks": ["SPIN SELLING (Neil Rackham)", "RECEITA PREVISIVEL (Aaron Ross)", "CHALLENGER SALES"],
+    "spin_questions": {
+      "situation": "Como financiam as obras hoje? Recurso proprio, banco ou vendas antecipadas?",
+      "problem": "A lentidao da medição ou da agencia ja travou o inicio de um lancamento?",
+      "implication": "Quanto de margem perdem comprando material a prazo por falta de giro? E se o concorrente girar o capital 4x mais rapido?",
+      "need_payoff": "Se liberassemos 5x seu faturamento em 28 dias, quantas obras a mais rodariam? Ter um 'cartao Black' corporativo ajudaria no planejamento?"
+    },
+    "doctor_techniques": [
+      "Foco em Necessidades Explícitas, nao apenas Implicitas",
+      "Perguntas de Implicacao para aumentar percepticao de valor vs custo",
+      "Takeaway suave: 'Preciso validar se voce se qualifica para o Protocolo G5X. Existe algo que nos impeca de seguir?'",
+      "Fechamento natural: proposer proximo passo realista (Sessao de Viabilidade), nunca pressionar com 'fechamentos' artificiais"
+    ]
+  },
+  "outbound_cadence_kanban": {
+    "stages": [
+      {
+        "kanban_stage": "Lead Novo",
+        "touch_number": "#1",
+        "channel": "WhatsApp",
+        "action": "SPIN inicial + validacao PIC + tom consultivo"
+      },
+      {
+        "kanban_stage": "Em Qualificacao",
+        "touch_number": "#2",
+        "channel": "Email",
+        "action": "Case de sucesso + Proposta de Valor + Calendly"
+      },
+      {
+        "kanban_stage": "Viabilidade Agendada",
+        "touch_number": "#3",
+        "channel": "WhatsApp",
+        "action": "Confirmar + enviar pré-briefing + lembrete"
+      },
+      {
+        "kanban_stage": "Em Analise / Dossie",
+        "touch_number": "#4",
+        "channel": "Email",
+        "action": "Atualizar status + manter engajamento + autoridade"
+      },
+      {
+        "kanban_stage": "Aprovado / Honorario",
+        "touch_number": "#5",
+        "channel": "WhatsApp",
+        "action": "Orientar proximos passos + prazo 48h + facilitacao"
+      },
+      {
+        "kanban_stage": "Ganho / Perdido / Nutrir",
+        "touch_number": "#6",
+        "channel": "Email",
+        "action": "Feedback + nutricao estrategica + opcao Parceiro"
+      }
+    ],
+    "variations": "Cada mensagem da cadencia gera 3 variacoes automaticas (estrutura, abertura, verbo) para evitar deteccao de robo. Delay humano entre envios (1.5s a 8s digitando + pausa)."
+  },
+  "technical_requirements": {
+    "floating_widget": {
+      "description": "Componente flutuante no canto inferior direito, sincronizado com aba `/doctor`. Minimizable, draggable, mostra status em tempo real",
+      "examples": ["Doctor analisando lead #123...", "Groq movendo card...", "DeepSeek gerando copy..."]
+    },
+    "chat_fix": {
+      "description": "Remover conflito de `event listeners`, aplicar `debounce` no input, priorizar mensagens do usuario sobre logs do agente. Criar fila: Usuario → Doctor → Execucao → Resposta."
+    },
+    "whatsapp_real": {
+      "description": "Integrar via Baileys/API (modo `api` ou `baileys`). NADA de `simulacao`. Autenticacao via pairing code. Implementar `typing indicator` proporcional ao tamanho da mensagem. Embed da conversa WhatsApp + historico de e-mail dentro do card do lead."
+    },
+    "linkedin": {
+      "status": "DESATIVADO/COMENTADO POR ENQUANTO. Foco 100% em WhatsApp + Email."
+    },
+    "calendly": {
+      "description": "Integrar via API/webhook. Gerar links customizados por tipo de reuniao (viabilidade 30min, fechamento 45min). Auto-sync com `agent_log`."
+    },
+    "local_listener": {
+      "description": "Manter processo WebSocket ativo (`/ws/agent`, `/ws/chat`, `/webhooks/*`). Heartbeat a cada 30s. Gerencia fila de tarefas e sync em tempo real. Executar como servico (`pm2 start server.js --name \"g5x-listener\"`)."
+    }
+  },
+  "knowledge_base_processing": {
+    "steps": [
+      {
+        "step": "UPLOAD",
+        "description": "PDFs sobem via aba Conhecimento. Parser extrai texto, chunking inteligente, OCR se necessario."
+      },
+      {
+        "step": "PROCESSAMENTO (Groq + DeepSeek)",
+        "description": [
+          "Groq: Estrutura em topicos, frameworks, checklists.",
+          "DeepSeek: Interpreta metodologia, extrai princípios aplicaveis ao G5X.",
+          "Saida: JSON em `knowledge_base` (titulo, autor, metodologias, regras de aplicacao)."
+        ]
+      },
+      {
+        "step": "APLICACAO EM TEMPO REAL",
+        "description": "Ao gerar mensagem ou script, o Doctor consulta a base. Se lead e B2B construtor → aplica SPIN + Protocolo G5X. Se objecao de preço → aplica 'Negocie Como Se Sua Vida Dependesse Disso'. Se ciclo longo → aplica 'Receita Previsivel' (nutricao, metricas, passagem de bastao)."
+      },
+      {
+        "step": "FEEDBACK LOOP",
+        "description": "Taxa de conversao por tecnica ajusta peso no prompt dinamicamente."
+      }
+    ]
+  },
+  "commands_operational_flow": {
+    "doctor_iniciar": "Carrega config, sincroniza Supabase, inicia heartbeat, ativa widget.",
+    "doctor_cadencia": "Mostra proximo toque, variacoes de copy, status de limites.",
+    "doctor_spion": "Gera roteiro SPIN personalizado baseado no historico do lead.",
+    "doctor_knowledge": "Lista livros processados, sugere aplicacao no lead atual.",
+    "doctor_status": "Reporta metricas: envios hoje, respostas, conversao, erros, limites restantes.",
+    "flow": "Lead entra → Doctor detecta → Valida PIC → Seleciona canal → DeepSeek gera copy → Groq envia → Loga resultado → Agenda proximo toque → Reporta."
+  },
+  "prohibited_vs_required": {
+    "never_do": [
+      "Falar como robo, generico ou passivo",
+      "Citar precos, parcelamentos ou prazos garantidos",
+      "Usar cold calling tradicional ou tecnicas de fechamento manipulativas",
+      "Ignorar LGPD, CDC ou politicas de WhatsApp (sempre optar por opt-out claro)"
+    ],
+    "always_do": [
+      "Tom de 'Banca de Especialistas', direto, tecnico, Challenger",
+      "Focar em ROI, escala, mitigacao de risco e sucesso do cliente",
+      "Usar SPIN naturalmente, criar valor antes de apresentar solucao",
+      "Validar PIC rigorosamente antes de agendar Sessao de Viabilidade",
+      "Registrar TUDO no `agent_log` e `activity_log`. Se nao tá no log, nao aconteceu."
+    ]
+  },
+  "doctor_signature": "\"Se não tá no log, não aconteceu. Se não converteu, a gente ajusta. Bora pra próxima.\"",
+  "analysis_scope": {
+    "technical": [
+      "code_quality",
+      "architecture",
+      "security",
+      "performance",
+      "scalability",
+      "maintainability",
+      "extensibility",
+      "integration_quality"
+    ],
+    "operational": [
+      "outbound_cadence_effectiveness",
+      "lead_qualification_accuracy",
+      "message_personalization_quality",
+      "channel_selection_optimization",
+      "compliance_adherence",
+      "human_behavior_simulation",
+      "knowledge_base_utilization",
+      "feedback_loop_effectiveness"
+    ],
+    "commercial": [
+      "spin_methodology_application",
+      "challenger_selling_implementation",
+      "predictable_revenue_alignment",
+      "roi_focus",
+      "scale_readiness",
+      "risk_mitigation"
+    ]
+  },
+  "depth": "comprehensive",
+  "output_format": "detailed_report_with_actionable_items_followed_by_implementation_roadmap"
+}

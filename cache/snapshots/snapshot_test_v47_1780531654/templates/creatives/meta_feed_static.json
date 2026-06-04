@@ -1,0 +1,43 @@
+{
+  "name": "meta_feed_static",
+  "platform": "meta",
+  "dimensions": [1080, 1080],
+  "safe_zones": {
+    "top_padding": 120,
+    "bottom_padding": 120,
+    "side_padding": 80
+  },
+  "text_zones": [
+    {
+      "field": "headline",
+      "position": [80, 150],
+      "font_size": 72,
+      "max_lines": 2,
+      "align": "left",
+      "color_variants": ["#000000", "#FFFFFF"]
+    },
+    {
+      "field": "body",
+      "position": [80, 400],
+      "font_size": 36,
+      "max_lines": 4,
+      "align": "left",
+      "color_variants": ["#333333", "#EEEEEE"]
+    },
+    {
+      "field": "cta",
+      "position": [80, 900],
+      "font_size": 48,
+      "max_lines": 1,
+      "align": "center",
+      "bg_color": "#007AFF",
+      "text_color": "#FFFFFF",
+      "padding": [20, 40],
+      "border_radius": 12
+    }
+  ],
+  "brand_zone": {
+    "logo_position": [920, 80],
+    "logo_max_size": [120, 120]
+  }
+}

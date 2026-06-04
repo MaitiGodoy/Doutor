@@ -2,6 +2,7 @@
   "role": "the_master_key",
   "model": "",
   "temperature": 0.1,
+  "system_prompt_file": "prompts/the_master_key.md",
   "max_tokens": 1024,
   "trust_level": "full",
   "auto_approve_all": true,

@@ -1,0 +1,16 @@
+{
+  "role": "the_omni_aa",
+  "model": "openrouter/qwen/qwen-2.5-coder-32b-instruct",
+  "temperature": 0.1,
+  "max_tokens": 3000,
+  "system_prompt_file": "prompts/the_omni_aa.md",
+  "trigger": "on_demand",
+  "budget_cap": 8000,
+  "safety": {
+    "dry_run_mandatory": true,
+    "block_production_without_confirm": true,
+    "max_actions_per_turn": 8,
+    "timeout_sec": 30
+  },
+  "log_path": "logs/omni_aa.jsonl"
+}

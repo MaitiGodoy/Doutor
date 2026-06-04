@@ -1,0 +1,11 @@
+{
+  "tools": {
+    "test_tool": {
+      "version": "1.0",
+      "status": "healthy",
+      "healthcheck": "echo hello",
+      "fallback": "fallback",
+      "last_check": 1780532934.9190025
+    }
+  }
+}

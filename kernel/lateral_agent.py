@@ -5,11 +5,14 @@ import time
 import math
 import re
 import difflib
+import logging
 from pathlib import Path
 from typing import Dict, List, Any
 from kernel.llm_client import call_llm
 from kernel.utils import validate_json
+from agents.base_agent import BaseAgent
 
+logger = logging.getLogger("doutor.kernel_lateral")
 
 SECRETS_REGEXES = [
     (r"api[_-]?key\s*[:=]\s*['\"]([A-Za-z0-9_\-]{16,})['\"]", "api_key"),
@@ -59,36 +62,41 @@ def shannon_entropy(s: str) -> float:
     return entropy
 
 
-class LateralAgent:
+class LateralAgent(BaseAgent):
     """
     The Lateral v1.2 — 5 Defensive Audits + 5 Active Remediations.
     """
     def __init__(self, config_path="agents/roles/lateral.json", router=None):
         base_dir = Path(__file__).parent.parent
         if isinstance(config_path, dict):
-            self.config = config_path
+            cfg = config_path
         else:
             resolved_config_path = base_dir / config_path
-            self.config = {}
+            cfg = {}
             if resolved_config_path.exists():
                 try:
                     with open(resolved_config_path, "r", encoding="utf-8") as f:
-                        self.config = json.load(f)
+                        cfg = json.load(f)
                 except Exception as e:
-                    print(f"[LateralAgent] Error loading config: {e}")
-            else:
-                self.config = {
+                    logger.warning(f"[LateralAgent] Error loading config: {e}")
+                    cfg = {}
+            if not cfg:
+                cfg = {
                     "role": "the_lateral",
                     "system_prompt_file": "prompts/the_lateral.md",
                     "log_to": "logs/lateral_audit.jsonl"
                 }
 
-        log_to = self.config.get("log_to", "logs/lateral_audit.jsonl")
+        role_name = cfg.get("role", "the_lateral")
+        super().__init__(role_name, cfg, router)
+
+        self.config = cfg
+        log_to = cfg.get("log_to", "logs/lateral_audit.jsonl")
         self.audit_log_path = base_dir / log_to
         self.audit_log_path.parent.mkdir(parents=True, exist_ok=True)
         self.base_dir = base_dir
-        self.scanner_config = self.config.get("scanner_modes", {})
-        self.remediation_config = self.config.get("remediation_modes", {})
+        self.scanner_config = cfg.get("scanner_modes", {})
+        self.remediation_config = cfg.get("remediation_modes", {})
 
     def _resolve_target(self, target_path: str) -> Path:
         target_abs = Path(target_path)

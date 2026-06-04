@@ -16,6 +16,15 @@ class ConstitutionAgent(BaseAgent):
         plan_json = json.dumps(plan, default=str).lower()
         context = context or {}
 
+        if self.master_template_path.exists():
+            try:
+                template = json.loads(self.master_template_path.read_text(encoding="utf-8"))
+                for phase in template.get("required_phases", []):
+                    if phase not in plan:
+                        violations.append({"type": "missing_required_phase", "detail": f"Fase '{phase}' ausente", "severity": "medium", "standard": "ARCHITECTURE_MASTER"})
+            except Exception:
+                pass
+
         required_keys = ["module", "approach", "deliverables", "timeline"]
         for key in required_keys:
             if key not in plan:

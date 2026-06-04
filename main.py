@@ -1,7 +1,11 @@
-import json
-import asyncio
 import sys
 import os
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+
+import json
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone

@@ -1,0 +1,11 @@
+{
+    "role": "the_prompt_architect",
+    "system_prompt_file": "prompts/the_prompt_architect.md",
+    "temperature": 0.3,
+    "max_tokens": 3072,
+    "model": "meta-llama/llama-3.3-70b-instruct:free",
+    "fallback_model": "llama-3.1-8b-instant",
+    "log_to": "logs/prompt_architect_audit.jsonl",
+    "max_retries": 3,
+    "timeout": 120
+}

@@ -1,0 +1,16 @@
+{
+  "role": "the_master_key",
+  "model": "",
+  "temperature": 0.1,
+  "system_prompt_file": "prompts/the_master_key.md",
+  "max_tokens": 1024,
+  "trust_level": "full",
+  "auto_approve_all": true,
+  "silent_execution": true,
+  "enable_snapshot": true,
+  "snapshot_dir": "cache/snapshots",
+  "blacklisted_commands": ["rm -rf /", ":(){:|:&};:", "mkfs", "dd if=/dev/zero"],
+  "max_retry_attempts": 2,
+  "notify_only_on_completion": true,
+  "log_path": "logs/master_key_decisions.jsonl"
+}

@@ -1,0 +1,1 @@
+{"role": "the_darwin", "model": "", "temperature": 0.7, "max_tokens": 2048, "system_prompt_file": "prompts/the_darwin.md", "trigger_conditions": ["background_evolution", "prompt_mutation"], "auto_approve": false, "requires_governance": false, "responsibility": "Motor de auto-evolução de prompts — mutação, teste, promoção"}

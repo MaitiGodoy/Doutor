@@ -1,0 +1,1 @@
+{"role": "the_chronic", "model": "", "temperature": 0.95, "max_tokens": 2048, "system_prompt_file": "prompts/the_chronic.md", "trigger_conditions": ["creative_block", "stuck_phase"], "auto_approve": false, "requires_governance": false, "responsibility": "Caos criativo controlado — quebra padrões rígidos, injeta viés não linear"}

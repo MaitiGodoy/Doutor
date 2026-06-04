@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
 
-DB_PATH = Path("data/doutor.db")
+DB_PATH = Path(__file__).parent.parent / "data" / "doutor.db"
 _local = threading.local()
 
 

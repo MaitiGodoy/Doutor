@@ -1,0 +1,16 @@
+{
+  "type": "code_analysis",
+  "target": "CRM G5X - Sistema de Agente Autônomo para Engajamento Outbound",
+  "focus_areas": [
+    "architecture",
+    "security",
+    "scalability",
+    "maintainability",
+    "performance",
+    "extensibility",
+    "human_behavior_simulation",
+    "integration_quality"
+  ],
+  "depth": "comprehensive",
+  "output_format": "detailed_report_with_actionable_items"
+}

@@ -1,0 +1,29 @@
+{
+  "role": "the_lateral",
+  "model": "gemma-2-9b",
+  "temperature": 0.75,
+  "max_tokens": 4096,
+  "system_prompt_file": "prompts/the_lateral.md",
+  "trigger_conditions": ["blocked", "error", "timeout", "budget_exceeded", "policy_rejected", "compliance_scan_required"],
+  "auto_approve_alternatives": false,
+  "requires_governance_validation": true,
+  "validation_mode": "defensive_tools_only",
+  "max_alternatives": 3,
+  "compliance_threshold": 0.85,
+  "log_to": "logs/lateral_audit.jsonl",
+  "allowed_cli_tools": ["bandit", "safety", "ruff", "pip-audit"],
+  "scanner_modes": {
+    "secrets": {"enabled": true, "min_entropy": 4.5},
+    "cors_headers": {"enabled": true, "check_headers": ["Content-Security-Policy", "Strict-Transport-Security", "X-Frame-Options", "X-Content-Type-Options"]},
+    "cookies": {"enabled": true, "required_flags": ["HttpOnly", "Secure", "SameSite"]},
+    "debug_flags": {"enabled": true, "patterns": ["debug\\s*=\\s*True", "DEBUG\\s*=\\s*True", "mode.*development", "environment.*dev", "VERBOSE\\s*=\\s*True"]},
+    "dep_lock": {"enabled": true, "check_files": ["requirements.txt", "Pipfile", "pyproject.toml"]}
+  },
+  "remediation_modes": {
+    "auto_patch": {"enabled": true, "patch_map": {"md5": "sha256", "sha1": "sha256", "eval": "ast.literal_eval", "pickle.loads": "json.loads", "exec": "subprocess.run"}},
+    "dep_update": {"enabled": true, "strategy": "pin_latest"},
+    "credential_isolate": {"enabled": true, "env_template": ".env.example"},
+    "fuzz_test": {"enabled": true, "output_dir": "tests"},
+    "regression_test": {"enabled": true, "output_dir": "tests"}
+  }
+}

@@ -10,12 +10,12 @@ FUZZ_CASES = {
     "null_bytes": "\\x00\\x00\\x00",
     "unicode_exploit": "\\uffff\\u0000\\ud800",
     "negative_numbers": -9999999999999999999999,
-    "sql_injection": ' OR 1=1; DROP TABLE users; --,
-    "xss_payload": '><script>alert(1)</script>,
+    "sql_injection": " OR 1=1; DROP TABLE users; --",
+    "xss_payload": "><script>alert(1)</script>",
     "integer_overflow": 99999999999999999999999999999999999,
     "long_string_10k": "A" * 10000,
     "nested_json_bomb": json.loads('{"a":{"a":{"a":{"a":{}}}}}'),
-    "path_traversal": ../../../../etc/passwd,
+    "path_traversal": "../../../../etc/passwd",
 }
 
 

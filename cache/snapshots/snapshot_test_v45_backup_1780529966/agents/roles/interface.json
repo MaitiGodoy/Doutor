@@ -1,0 +1,1 @@
+{"role": "the_concierge", "model": "", "temperature": 0.5, "max_tokens": 2048, "system_prompt_file": "prompts/the_concierge.md", "trigger_conditions": ["pipeline_end", "human_readout"], "auto_approve": false, "requires_governance": false, "responsibility": "Tradutor técnico → humano — output acessível"}

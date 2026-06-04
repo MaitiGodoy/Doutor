@@ -1,0 +1,9 @@
+{
+  "version": "1.0",
+  "description": "Template master de arquitetura para validacao do Constitution Agent",
+  "required_phases": ["briefing", "strategy", "creation", "quality", "deploy"],
+  "blocked_operations": ["rm -rf /", "drop table", "truncate", "shutdown", "format"],
+  "max_token_budget_per_phase": 16384,
+  "governance_gates": 4,
+  "auto_approve_roles": ["the_producer", "the_ranker", "the_voice", "the_inner_spark"]
+}

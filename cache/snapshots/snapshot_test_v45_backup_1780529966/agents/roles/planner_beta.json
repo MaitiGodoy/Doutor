@@ -1,0 +1,11 @@
+{
+    "role": "the_planner_beta",
+    "system_prompt_file": "prompts/the_planner_beta.md",
+    "temperature": 0.1,
+    "max_tokens": 4096,
+    "model": "google/gemma-4-31b-it:free",
+    "fallback_model": "llama-3.3-70b-versatile",
+    "log_to": "logs/planner_beta_audit.jsonl",
+    "max_retries": 3,
+    "timeout": 120
+}

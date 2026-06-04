@@ -1,0 +1,1 @@
+{"role": "the_senior_dev", "model": "", "temperature": 0.2, "max_tokens": 4096, "system_prompt_file": "prompts/the_senior_dev.md", "trigger_conditions": ["code_generation", "refactoring"], "auto_approve": false, "requires_governance": false, "responsibility": "Gerador de código production-ready — type hints, tratamento de erro, zero placeholder"}

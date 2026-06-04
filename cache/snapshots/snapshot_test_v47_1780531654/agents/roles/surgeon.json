@@ -1,0 +1,1 @@
+{"role": "the_surgeon", "model": "", "temperature": 0.1, "max_tokens": 2048, "system_prompt_file": "prompts/the_surgeon.md", "trigger_conditions": ["code_diff", "patch_validation"], "auto_approve": true, "requires_governance": false, "responsibility": "Especialista em diff cirúrgico e patch seguro via AST"}

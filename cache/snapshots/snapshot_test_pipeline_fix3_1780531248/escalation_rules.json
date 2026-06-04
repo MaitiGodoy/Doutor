@@ -1,0 +1,44 @@
+{
+  "rules": [
+    {
+      "trigger": "financial_guard_triggered",
+      "condition": "amount > daily_spend_limit",
+      "priority": "critical",
+      "template": "⚠️ ALERTA FINANCEIRO: Tentativa de gasto de R${amount} excede limite diário de R${limit}. Ação: [Aprovar uma vez] [Aumentar limite] [Bloquear]",
+      "requires_response": true,
+      "timeout_minutes": 30
+    },
+    {
+      "trigger": "compliance_risk_high",
+      "condition": "policy_score < 0.6 or claim_risk == 'high'",
+      "priority": "high",
+      "template": "🚫 RISCO DE COMPLIANCE: Copy/Anúncio pode violar políticas da {platform}. Motivo: {reason}. Sugestão: {fix}. Aprovar mesmo assim?",
+      "requires_response": true,
+      "timeout_minutes": 60
+    },
+    {
+      "trigger": "dry_run_failed_multiple",
+      "condition": "failures >= 3",
+      "priority": "medium",
+      "template": "🔧 AJUSTE NECESSÁRIO: O teste automático falhou 3 vezes. Erro: {error}. Preciso que você revise: {suggestion}",
+      "requires_response": true,
+      "timeout_minutes": 120
+    },
+    {
+      "trigger": "revenue_milestone",
+      "condition": "revenue >= unlock_ads_after_revenue",
+      "priority": "low",
+      "template": "🎉 META BATIDA! Você atingiu R${revenue} em vendas. Próximo passo sugerido: {next_action}. Quer que eu ative os anúncios pagos?",
+      "requires_response": false,
+      "timeout_minutes": null
+    },
+    {
+      "trigger": "daily_summary",
+      "condition": "time == '18:00'",
+      "priority": "low",
+      "template": "📊 RESUMO DO DIA: {tasks_completed} tarefas concluídas, {revenue_today} em vendas, {issues_resolved} problemas resolvidos. Amanhã: {planned_tasks}",
+      "requires_response": false,
+      "timeout_minutes": null
+    }
+  ]
+}

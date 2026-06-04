@@ -1,0 +1,1 @@
+{"role": "the_inner_spark", "model": "", "temperature": 0.3, "max_tokens": 1024, "system_prompt_file": "prompts/the_inner_spark.md", "trigger": "pipeline_end", "budget_cap": 2000, "responsibility": "Motor de aprendizado e feedback loop — análise de logs e padrões"}

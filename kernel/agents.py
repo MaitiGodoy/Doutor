@@ -1,46 +1,45 @@
 import asyncio
-from typing import Dict
+from typing import Dict, Optional
 from kernel.llm_client import call_llm
-from kernel.utils import compress_json, trim_context, validate_json
+from kernel.provider_router import ProviderRouter, AGENT_MODEL_MAP
+from kernel.utils import compress_json
 
-# SYSTEM PROMPTS
-PROMPTS = {
-    "planner_a": "Você é um arquiteto/estrategista conservador. Priorize padrões, segurança, SEO técnico, autoridade. Responda EXCLUSIVAMENTE em JSON válido.",
-    "planner_b": "Você é um estrategista experimental. Priorize performance, viralidade, ângulos disruptivos, escala agressiva. Responda EXCLUSIVAMENTE em JSON válido.",
-    "coder": "Implemente EXATAMENTE o plano. Código limpo, tipado, modular. JSON válido.",
-    "creator": "Traduza consenso em pacotes deploy-ready (copy, meta, CTA, fluxo). JSON válido.",
-    "auditor": "Encontre edge cases, vulnerabilidades, policy risks, SEO gaps. APENAS issues verificáveis. JSON válido.",
-    "reviewer_e": "Foco em DX/conversão/psicologia. Fricção, CTA placement, vieses. JSON válido.",
-    "reviewer_f": "Foco em compliance/brand safety. Políticas, claims, risco de ban. JSON válido.",
-    "tester": "Gere APENAS testes executáveis (happy + edge cases). Mocks obrigatórios. JSON válido.",
-    "optimizer": "Matrix A/B, predição CTR/CVR/ROAS, setup tracking, roadmap. JSON válido.",
-    "strategist_a": "Estrategista conservador de infoprodutos. Autoridade, garantia, preço justo, LTV. JSON válido.",
-    "strategist_b": "Estrategista de escala agressiva. Viral, upsells, velocidade, LTV máximo. JSON válido.",
-    "producer": "Gere sales page, checkout, email seq, módulos, criativos. JSON válido.",
-    "corrector": "Aplique APENAS patches. Preserve estrutura/ângulo. JSON válido."
-}
+_ROUTER: Optional[ProviderRouter] = None
 
-# NEURO-COPY CELL
-NEURO_PROMPTS = {
-    "halbert": "Você é Gary Halbert. Foco em curiosidade, storytelling, 'slippery slope', dores ocultas. Frases curtas, parágrafos de 1 linha, perguntas retóricas. Visceral, não corporativo. JSON válido.",
-    "ogilvy": "Você é David Ogilvy. Foco em BIG IDEAS, fatos, provas, benefícios tangíveis. Elimine adjetivos vazios. Use 'Você'. Clareza cristalina. JSON válido.",
-    "kennedy": "Você é Dan Kennedy. Foco em escassez, urgência, garantia, remoção de risco, CTAs magnéticos, FOMO, value stack. Ação imediata. JSON válido."
+def _get_router() -> ProviderRouter:
+    global _ROUTER
+    if _ROUTER is None:
+        _ROUTER = ProviderRouter()
+    return _ROUTER
+
+# Legacy role → new agent role mapping
+ROLE_ALIASES = {
+    "planner_a": "the_architect",
+    "planner_b": "the_polymath",
+    "coder": "the_senior_dev",
+    "creator": "the_wordsmiths",
+    "auditor": "the_inspector",
+    "reviewer_e": "the_empath",
+    "reviewer_f": "the_ranker",
+    "tester": "the_surgeon",
+    "optimizer": "the_scaler",
+    "strategist_a": "the_architect",
+    "strategist_b": "the_polymath",
+    "producer": "the_producer",
 }
 
 async def run_agent(role: str, user: str, consensus_ctx: Dict = None) -> Dict:
-    sys = PROMPTS[role]
+    agent_role = ROLE_ALIASES.get(role, role)
     ctx = f"CONTEXTO: {compress_json(consensus_ctx)}\n" if consensus_ctx else ""
-    return await call_llm(role, sys, f"{ctx}TAREFA: {user}")
+    return await call_llm(agent_role, f"You are {agent_role}. Respond in valid JSON.", f"{ctx}TASK: {user}")
 
 async def run_neuro_copy(task: str) -> Dict:
-    # Parallel dispatch
-    halbert = asyncio.create_task(call_llm("halbert", NEURO_PROMPTS["halbert"], task))
-    ogilvy = asyncio.create_task(call_llm("ogilvy", NEURO_PROMPTS["ogilvy"], task))
-    kennedy = asyncio.create_task(call_llm("kennedy", NEURO_PROMPTS["kennedy"], task))
-    
+    halbert = asyncio.create_task(call_llm("halbert", "You are Gary Halbert. Persuasive copy.", task))
+    ogilvy = asyncio.create_task(call_llm("ogilvy", "You are David Ogilvy. Big ideas, facts, proofs.", task))
+    kennedy = asyncio.create_task(call_llm("kennedy", "You are Dan Kennedy. Urgency, scarcity, CTA.", task))
+
     h, o, k = await asyncio.gather(halbert, ogilvy, kennedy)
-    
-    # Merge & Review
+
     merged = {
         "lead": h.get("lead", o.get("lead", "")),
         "body": o.get("body", h.get("body", "")),

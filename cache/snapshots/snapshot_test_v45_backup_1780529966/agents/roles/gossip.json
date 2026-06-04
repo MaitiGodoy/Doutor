@@ -1,0 +1,1 @@
+{"role": "the_gossip", "model": "", "temperature": 0.9, "max_tokens": 4096, "system_prompt_file": "prompts/the_gossip.md", "trigger_conditions": ["pipeline_end", "narrative_generation"], "auto_approve": false, "requires_governance": false, "responsibility": "Narradora dos bastidores — drama real com precisão técnica"}

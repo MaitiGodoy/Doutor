@@ -20,17 +20,28 @@ from kernel.lateral_agent import LateralAgent
 from kernel.budget_dashboard import generate_dashboard
 from kernel.health import health_status
 from agents.scout_agent import ScoutAgent
-from agents.dual_output_agent import DualOutputAgent
+from agents.polymath_agent import PolymathAgent
+from agents.strategy_agent import StrategyAgent
+from agents.director_agent import DirectorAgent
 from agents.governance import ConstitutionAgent
+from agents.wordsmiths_agent import WordsmithsAgent
+from agents.voice_agent import VoiceAgent
+from agents.dual_output_agent import DualOutputAgent
 from agents.surgeon_agent import SurgeonAgent
+from agents.quality_agent import QualityAgent
+from agents.optimizer_agent import OptimizerAgent
+from agents.design_agent import DesignAgent
+from agents.ranker_agent import RankerAgent
+from agents.concierge_agent import ConciergeAgent
 from agents.master_key_agent import MasterKeyAgent
+from agents.zoiao_agent import ZoiaoAgent
 from agents.inner_spark_agent import InnerSparkAgent
 from agents.omni_aa_agent import OmniAaAgent
-from agents.director_agent import DirectorAgent
 from agents.senior_dev_agent import SeniorDevAgent
 from agents.minimalist_agent import MinimalistAgent
 from agents.darwin_agent import DarwinAgent
 from agents.gossip_agent import GossipAgent
+from agents.chronic_agent import ChronicAgent
 from agents.prompt_architect_agent import PromptArchitectAgent
 from agents.planner_alpha_agent import PlannerAlphaAgent
 from agents.planner_beta_agent import PlannerBetaAgent
@@ -39,7 +50,6 @@ from agents.senior_dev_ui_agent import SeniorDevUiAgent
 from agents.senior_dev_ops_agent import SeniorDevOpsAgent
 from agents.council_protocol import CouncilProtocol
 from kernel.resilience_engine import ResilienceEngine
-from departments.seo_engine import SEOEngine
 from departments.workflow_engine import WorkflowEngine
 from meta.team_forge import TeamForge
 from meta.inner_spark import InnerSpark
@@ -49,28 +59,28 @@ logger = logging.getLogger("doutor.orchestrator")
 
 AGENT_ROLES_MAP = {
     "the_scout":       {"class": ScoutAgent, "config_key": "briefing"},
-    "the_polymath":    {"class": None, "config_key": "intelligence"},
-    "the_architect":   {"class": None, "config_key": "strategy"},
+    "the_polymath":    {"class": PolymathAgent, "config_key": "intelligence"},
+    "the_architect":   {"class": StrategyAgent, "config_key": "strategy"},
     "the_director":    {"class": DirectorAgent, "config_key": "executive"},
     "the_constitution":{"class": ConstitutionAgent, "config_key": "constitution"},
-    "the_wordsmiths":  {"class": None, "config_key": "creation"},
+    "the_wordsmiths":  {"class": WordsmithsAgent, "config_key": "creation"},
     "the_senior_dev":  {"class": SeniorDevAgent, "config_key": "senior_dev"},
-    "the_voice":       {"class": None, "config_key": "voice"},
+    "the_voice":       {"class": VoiceAgent, "config_key": "voice"},
     "the_producer":    {"class": DualOutputAgent, "config_key": "dual_output"},
     "the_surgeon":     {"class": SurgeonAgent, "config_key": "surgeon"},
-    "the_inspector":   {"class": None, "config_key": "quality"},
-    "the_scaler":      {"class": None, "config_key": "optimization"},
-    "the_empath":      {"class": None, "config_key": "design"},
-    "the_ranker":      {"class": None, "config_key": "seo"},
+    "the_inspector":   {"class": QualityAgent, "config_key": "quality"},
+    "the_scaler":      {"class": OptimizerAgent, "config_key": "optimization"},
+    "the_empath":      {"class": DesignAgent, "config_key": "design"},
+    "the_ranker":      {"class": RankerAgent, "config_key": "seo"},
     "the_lateral":     {"class": LateralAgent, "config_key": "lateral"},
-    "the_concierge":   {"class": None, "config_key": "interface"},
+    "the_concierge":   {"class": ConciergeAgent, "config_key": "interface"},
     "the_master_key":  {"class": MasterKeyAgent, "config_key": "master_key"},
-    "the_zoiao":       {"class": None, "config_key": "zoiao"},
+    "the_zoiao":       {"class": ZoiaoAgent, "config_key": "zoiao"},
     "the_omni_aa":     {"class": OmniAaAgent, "config_key": "omni_aa"},
     "the_minimalist":  {"class": MinimalistAgent, "config_key": "minimalist"},
     "the_darwin":      {"class": DarwinAgent, "config_key": "darwin"},
     "the_gossip":      {"class": GossipAgent, "config_key": "gossip"},
-    "the_chronic":     {"class": None, "config_key": "chronic"},
+    "the_chronic":     {"class": ChronicAgent, "config_key": "chronic"},
     "the_inner_spark":      {"class": InnerSparkAgent, "config_key": "inner_spark"},
     "the_prompt_architect": {"class": PromptArchitectAgent, "config_key": "prompt_architect"},
     "the_planner_alpha":    {"class": PlannerAlphaAgent, "config_key": "planner_alpha"},
@@ -91,7 +101,6 @@ class AntimatterOrchestrator:
         self.agents: Dict = {}
         self.master_key: Optional[MasterKeyAgent] = None
         self.lateral_agent = LateralAgent()
-        self.seo_engine = SEOEngine()
         self.state_mgr = StateManager()
         self.token_mgr = TokenManager()
         self.provider_router = ProviderRouter()
@@ -136,7 +145,6 @@ class AntimatterOrchestrator:
         mcp_bridge.master_key_instance = self.master_key
 
         self.agents["the_lateral"] = self.lateral_agent
-        self.agents["the_ranker"] = self.seo_engine
 
         self.consensus_engine = ConsensusEngine(self.provider_router)
         self.audit_logger = AuditLogger()
@@ -271,92 +279,10 @@ class AntimatterOrchestrator:
         except Exception as e:
             logger.error(f"[Orchestrator] Falha critica: {e}", exc_info=True)
             try:
-                if snapshot_path:
-                    await self.agents["the_master_key"].restore_full_backup(snapshot_path)
+                await self.agents["the_master_key"].restore_full_backup(snapshot_path)
             except:
                 pass
             return {"status": "critical_fail", "error": str(e), "run_id": run_id}
-        executed_phases.append({"name": "gate3_quality", "status": "approved" if quality_vote.accepted else "blocked", "conflicts": quality_vote.conflicts})
-
-        # 13. Gate 4: Final consensus (Constitution + Surgeon + Inspector)
-        final_vote = await self.consensus_engine.decide(
-            question="Should this project be finalized and deployed?",
-            context={"artifacts": self.artifacts, "phases": executed_phases},
-            agent_roles=["the_constitution", "the_surgeon", "the_inspector"],
-            min_votes=3,
-        )
-        self.artifacts["governance_4"] = {
-            "approved": final_vote.accepted,
-            "recommendation": final_vote.final_recommendation,
-            "conflicts": final_vote.conflicts,
-            "escalated": final_vote.escalated,
-        }
-        executed_phases.append({"name": "gate4_final", "status": "approved" if final_vote.accepted else "blocked", "conflicts": final_vote.conflicts})
-        if not final_vote.accepted:
-            return await self._abort("gate4_blocked", {"consensus": final_vote.final_recommendation, "conflicts": final_vote.conflicts})
-
-        # 14. Concierge
-        try:
-            explanation = await concierge_explain(self.artifacts)
-            self.artifacts["concierge"] = explanation
-            executed_phases.append({"name": "concierge", "status": "success"})
-        except Exception:
-            executed_phases.append({"name": "concierge", "status": "partial"})
-
-        # 15. Inner Spark aprende com a execução
-        inner_spark = self.agents.get("the_inner_spark")
-        if inner_spark and hasattr(inner_spark, "analyze_execution"):
-            try:
-                spark_log = {"run_id": run_id, "phases": executed_phases, "total_tokens": self.token_mgr.get_total_used(), "duration_ms": int((time.time() - start_time) * 1000)}
-                spark_result = await inner_spark.analyze_execution(spark_log)
-                self.artifacts["inner_spark"] = spark_result
-                executed_phases.append({"name": "inner_spark", "status": "analyzed"})
-            except Exception:
-                executed_phases.append({"name": "inner_spark", "status": "fail"})
-
-        # 16. Eval Harness
-        from kernel.eval_harness import EvalHarness
-        eval_harness = EvalHarness()
-        run_evals = [
-            eval_harness.validate_output(optimized, "briefing"),
-            eval_harness.validate_output(final_output, "code"),
-            eval_harness.validate_output(selected_plan, "plan")
-        ]
-        quality = eval_harness.aggregate_metrics(run_evals)
-        self.artifacts["quality_metrics"] = quality
-
-        # 17. Human-in-the-Loop (pausa se qualidade baixa ou gate crítico)
-        if quality["overall_status"] == "review_needed":
-            logger.warning("[Orchestrator] Qualidade abaixo do threshold. Aguardando aprovacao humana...")
-            self.state_mgr.save_run(run_id, {"status": "awaiting_human", "quality": quality, "paused_at": time.time()})
-            return {"status": "paused", "reason": "human_review_required", "quality": quality}
-
-        # 18. Persistencia & Observabilidade
-        from kernel.observability import ObservabilityDB
-        obs = ObservabilityDB()
-        obs.ingest_jsonl()
-
-        from kernel.semantic_memory import SemanticMemory
-        memory = SemanticMemory()
-        memory.store(run_id, f"Run {run_id} completed. Quality: {quality['avg_quality_score']}", ["auto", "code", "plan"])
-
-        # 19. Darwin (background, nao bloqueante)
-        asyncio.create_task(self.agents["the_darwin"].analyze_and_mutate())
-
-        ended_at = time.time()
-        status = "completed" if not any(p.get("status") in ("blocked", "fail") for p in executed_phases) else "partial"
-
-        self.state_mgr.save_run(run_id, {"status": status, "module": self.module, "started_at": start_time, "ended_at": ended_at, "tokens_used": self.token_mgr.get_total_used(), "cost_estimate": 0.0, "metadata": {"artifact_count": len(self.artifacts), "phase_count": len(executed_phases)}})
-        self.state_mgr.log_audit("orchestrator", "execute_complete", run_id, status)
-
-        return {
-            "status": status,
-            "run_id": run_id,
-            "quality_score": quality["avg_quality_score"],
-            "artifacts": self.artifacts,
-            "phases": executed_phases,
-            "execution_time_ms": int((time.time() - start_time) * 1000)
-        }
 
     async def _abort(self, reason: str, detail: Dict) -> Dict:
         self.state_mgr.save_run(self.run_id, {"status": "blocked", "module": self.module, "started_at": self.started_at, "ended_at": time.time()})

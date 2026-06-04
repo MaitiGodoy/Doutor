@@ -8,8 +8,9 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 
 
-DB_DIR = "data"
-DB_PATH = os.path.join(DB_DIR, "doutor_state.db")
+_BASE = Path(__file__).parent.parent
+DB_DIR = str(_BASE / "data")
+DB_PATH = str(_BASE / "data" / "doutor_state.db")
 
 
 def get_connection() -> sqlite3.Connection:

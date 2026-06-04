@@ -1,0 +1,1 @@
+{"role": "the_voice", "model": "", "temperature": 0.7, "max_tokens": 3072, "system_prompt_file": "prompts/the_voice.md", "trigger_conditions": ["tone_adjustment", "brand_voice"], "auto_approve": false, "requires_governance": false, "responsibility": "Aplicador de tom e ritmo — Douglas Adams Protocol"}

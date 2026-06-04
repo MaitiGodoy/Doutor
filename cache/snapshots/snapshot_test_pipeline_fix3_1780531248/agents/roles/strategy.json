@@ -1,0 +1,1 @@
+{"role": "the_architect", "model": "", "temperature": 0.6, "max_tokens": 3072, "system_prompt_file": "prompts/the_architect.md", "trigger_conditions": ["planning", "execution_strategy"], "auto_approve": false, "requires_governance": true, "responsibility": "Estrategista de plano A/B fusionado"}

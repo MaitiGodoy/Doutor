@@ -5,7 +5,7 @@ import os
 from typing import Dict, List
 from pathlib import Path
 
-from kernel.state_manager import StateManager
+from kernel.state_manager import StateManager, DB_PATH
 from kernel.provider_quotas import get_all_quotas, circuit_breaker_status
 
 sm = StateManager()
@@ -21,9 +21,8 @@ def get_uptime() -> int:
 
 def check_db() -> bool:
     try:
-        conn = get_connection()
+        conn = sm.get_connection()
         conn.execute("SELECT 1")
-        conn.close()
         return True
     except Exception as e:
         logger.error(f"DB health check failed: {e}")
@@ -33,10 +32,11 @@ def check_db() -> bool:
 def check_disk() -> Dict:
     data_dir = Path("data")
     logs_dir = Path("logs")
+    db_path = sm.db_path
     return {
         "data_exists": data_dir.exists(),
         "log_exists": logs_dir.exists(),
-        "db_size_bytes": os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0,
+        "db_size_bytes": os.path.getsize(db_path) if os.path.exists(db_path) else 0,
     }
 
 
@@ -66,7 +66,7 @@ def auto_recover():
         backup_path = f"data/doutor_state_backup_{date_str}.db"
         if os.path.exists(backup_path):
             import shutil
-            shutil.copy2(backup_path, DB_PATH)
+            shutil.copy2(backup_path, sm.db_path)
             logger.info(f"DB auto-recovered from {backup_path}")
             return True
         logger.error("DB corrupted and no backup available")

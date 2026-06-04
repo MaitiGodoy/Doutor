@@ -1,0 +1,10 @@
+{
+  "type": "infoproduct",
+  "niche": "GERIC FAST - Consultoria Digital",
+  "audience": "Construtoras com faturamento > R$ 5M",
+  "goal": "Lead Generation e Conversão",
+  "platforms": ["WhatsApp", "Email", "LinkedIn"],
+  "tone": "Técnico e Challenger",
+  "budget_limit": 0,
+  "kpis": ["taxa_resposta", "taxa_conversao"]
+}

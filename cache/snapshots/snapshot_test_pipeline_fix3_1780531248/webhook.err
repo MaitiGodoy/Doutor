@@ -1,0 +1,3 @@
+2026-06-01 16:05:20,004 [INFO] doutor.main: Circuit breaker: 5/5 providers healthy
+2026-06-01 16:05:20,504 [INFO] doutor.main: Webhook server starting on 0.0.0.0:8080
+2026-06-01 17:56:56,667 [INFO] aiohttp.access: 127.0.0.1 [01/Jun/2026:17:56:56 -0300] "GET /health HTTP/1.1" 200 981 "-" "Mozilla/5.0 (Windows NT; Windows NT 10.0; pt-BR) WindowsPowerShell/5.1.26100.8521"

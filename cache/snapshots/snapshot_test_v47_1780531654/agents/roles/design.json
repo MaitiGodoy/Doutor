@@ -1,0 +1,1 @@
+{"role": "the_empath", "model": "", "temperature": 0.6, "max_tokens": 3072, "system_prompt_file": "prompts/the_empath.md", "trigger_conditions": ["ux_review", "design_validation"], "auto_approve": false, "requires_governance": false, "responsibility": "Designer de UX/UI e conversão visual — usabilidade > arte"}

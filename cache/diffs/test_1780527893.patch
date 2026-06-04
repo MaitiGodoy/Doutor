@@ -1,0 +1,4 @@
+--- original/test.py
++++ new/test.py
+@@ -1 +1 @@
+-a=1+a=2

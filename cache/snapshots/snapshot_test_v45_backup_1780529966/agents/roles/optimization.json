@@ -1,0 +1,1 @@
+{"role": "the_scaler", "model": "", "temperature": 0.4, "max_tokens": 3072, "system_prompt_file": "prompts/the_scaler.md", "trigger_conditions": ["optimization", "performance"], "auto_approve": false, "requires_governance": false, "responsibility": "Otimizador de performance e ROI — matriz A/B"}

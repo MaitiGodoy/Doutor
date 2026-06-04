@@ -1,0 +1,1 @@
+{"role": "the_minimalist", "model": "", "temperature": 0.3, "max_tokens": 1024, "system_prompt_file": "prompts/the_minimalist.md", "trigger_conditions": ["budget_warning", "efficiency_check"], "auto_approve": false, "requires_governance": false, "responsibility": "Otimizador de eficiência transversal — menos tokens, menos código, mais resultado"}

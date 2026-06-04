@@ -1,0 +1,1 @@
+{"role": "the_polymath", "model": "", "temperature": 0.7, "max_tokens": 3072, "system_prompt_file": "prompts/the_polymath.md", "trigger_conditions": ["research", "analysis"], "auto_approve": false, "requires_governance": false, "responsibility": "Sintetizador multidisciplinar — pesquisa e correlação de dados"}
