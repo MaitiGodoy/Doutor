@@ -14,6 +14,63 @@ from kernel.provider_quotas import check_quota, increment_quota, circuit_breaker
 
 logger = logging.getLogger("antimatter.router")
 
+# ─── VPS OLLAMA MODEL MAP ──────────────────────────────────────────────
+# Cada agente usa um modelo diferente para distribuir carga na VPS (7.8GB RAM, 2 vCPUs)
+# Copywriters: cada um com modelo diferente (anti-collusion + distribuição RAM)
+# Auditores: cada um com modelo diferente
+# Devs: qwen2.5-coder (otimizado para código)
+# Agentes simples: gemma3:4b (mais leve, 3.3GB)
+OLLAMA_VPS_MODEL_MAP = {
+    # ── Auditors (5 modelos diferentes para não colidir) ──
+    "the_scout":          "llama3.2:8b",     # 2.0GB — pesquisa rápida
+    "the_polymath":       "mistral:7b",       # 4.4GB — análise profunda
+    "the_architect":      "deepseek-r1:7b",   # 4.7GB — raciocínio arquitetural
+    "the_constitution":   "deepseek-r1:7b",   # 4.7GB — validação rigorosa
+    "the_ranker":         "llama3.2:8b",      # 2.0GB — ranking leve
+    "the_lateral":        "mistral:7b",       # 4.4GB — pensamento lateral
+    # ── Copywriters (cada um num modelo diferente) ──
+    "halbert":            "llama3.2:8b",      # 2.0GB — copy agressiva
+    "ogilvy":             "mistral:7b",       # 4.4GB — copy storytelling
+    "kennedy":            "gemma3:4b",        # 3.3GB — copy emocional
+    # ── Code Agents (qwen2.5-coder é o melhor para código) ──
+    "the_surgeon":        "qwen2.5-coder:7b", # 4.7GB — edição cirúrgica
+    "the_inspector":      "qwen2.5-coder:7b", # 4.7GB — revisão de código
+    "the_scaler":         "qwen2.5-coder:7b", # 4.7GB — escalabilidade
+    "the_omni_aa":        "qwen2.5-coder:7b", # 4.7GB — automação fullstack
+    "the_zoiao":          "qwen2.5-coder:7b", # 4.7GB — zoiao
+    "the_senior_dev":     "qwen2.5-coder:7b", # 4.7GB — dev geral
+    "the_senior_dev_core":"qwen2.5-coder:7b", # 4.7GB — dev core
+    "the_senior_dev_ui":  "qwen2.5-coder:7b", # 4.7GB — dev ui
+    "the_senior_dev_ops": "qwen2.5-coder:7b", # 4.7GB — dev ops
+    "coder":              "qwen2.5-coder:7b", # legacy
+    # ── Direção & Planejamento ──
+    "the_director":       "llama3.2:8b",      # 2.0GB — direção estratégica
+    "the_prompt_architect":"deepseek-r1:7b",  # 4.7GB — prompt engineering
+    "the_planner_alpha":  "deepseek-r1:7b",   # 4.7GB — planejamento profundo
+    "the_planner_beta":   "mistral:7b",       # 4.4GB — planejamento alternativo
+    "planner_a":          "deepseek-r1:7b",   # legacy
+    "planner_b":          "mistral:7b",       # legacy
+    # ── Criativos & Conteúdo ──
+    "the_wordsmiths":     "mistral:7b",       # 4.4GB — escrita criativa
+    "the_voice":          "gemma3:4b",        # 3.3GB — voz/tom
+    "the_empath":         "gemma3:4b",        # 3.3GB — empatia
+    "the_producer":       "llama3.2:8b",      # 2.0GB — produção
+    "the_concierge":      "llama3.2:8b",      # 2.0GB — atendimento
+    "the_chronic":        "gemma3:4b",        # 3.3GB — crônica
+    "the_gossip":         "llama3.2:8b",      # 2.0GB — fofoca leve
+    "the_darwin":         "mistral:7b",       # 4.4GB — evolução
+    "the_minimalist":     "gemma3:4b",        # 3.3GB — minimalista (mais leve)
+    "the_inner_spark":    "gemma3:4b",        # 3.3GB — spark leve
+    # ── Legacy ──
+    "creator":            "mistral:7b",
+    "auditor":            "llama3.2:8b",
+    "producer":           "llama3.2:8b",
+}
+# Garantir que todo role do AGENT_MODEL_MAP tenha entrada no VPS
+for _role in AGENT_MODEL_MAP:
+    if _role not in OLLAMA_VPS_MODEL_MAP:
+        OLLAMA_VPS_MODEL_MAP[_role] = "llama3.2:8b"  # fallback seguro
+
 ANTI_COLLUSION_GROUPS = [
     ["the_architect", "the_wordsmiths", "the_scaler"],
     ["the_polymath", "the_inspector", "the_empath"],
@@ -137,6 +194,9 @@ class ProviderConfig:
     daily_request_count: int = 0
     daily_request_limit: int = 200
     extra_headers: Dict[str, str] = field(default_factory=dict)
+    # ─── Concurrency protection ──────────────────────────────────────
+    max_concurrent: int = 1      # Máx. requisições simultâneas (1 = proteção VPS)
+    concurrent_requests: int = 0 # Requests ativos no momento
 
 def load_providers() -> List[ProviderConfig]:
     providers = []
@@ -293,6 +353,25 @@ def load_providers() -> List[ProviderConfig]:
             daily_request_limit=200,
             models={role: "meta-llama/Meta-Llama-3-70B-Instruct-Turbo" for role in AGENT_MODEL_MAP},
         ))
+    # ─── VPS Ollama (prioridade 0 — PRIMÁRIO) ──────────────────────────
+    vps_host = os.getenv("OLLAMA_VPS_HOST", "").rstrip("/")
+    vps_key = os.getenv("OLLAMA_VPS_API_KEY", "")
+    if vps_host and vps_key:
+        providers.append(ProviderConfig(
+            name="ollama_vps",
+            base_url=f"{vps_host}/v1",
+            api_key=vps_key,
+            priority=0,                         # Maior prioridade = tenta primeiro
+            daily_request_limit=500,            # Máximo 500 req/dia na VPS (proteção)
+            max_concurrent=1,                   # Apenas 1 req por vez (2 vCPUs, 7.8GB RAM)
+            models=dict(OLLAMA_VPS_MODEL_MAP),  # Cópia do mapeamento otimizado
+            extra_headers={
+                "X-API-Key": vps_key,
+                "Content-Type": "application/json",
+            },
+        ))
+        logger.info(f"ollama_vps PRIMÁRIO configurado: {vps_host} (500 req/dia, prioridade 0)")
+
     ollama_url = os.getenv("OLLAMA_HOST", "http://localhost:11434")
     providers.append(ProviderConfig(
         name="ollama_local",
@@ -307,6 +386,7 @@ def load_providers() -> List[ProviderConfig]:
 
 
 PROVIDER_CHAIN_META = [
+    {"name": "ollama_vps", "model": "llama3.2:8b", "priority": 0, "cost_per_1k": 0.0},
     {"name": "openrouter", "model": "qwen-2.5-coder-32b-instruct", "priority": 1, "cost_per_1k": 0.0003},
     {"name": "groq", "model": "llama-3.1-8b-instant", "priority": 2, "cost_per_1k": 0.00005},
     {"name": "huggingface", "model": "microsoft/phi-3-mini", "priority": 3, "cost_per_1k": 0.0},
@@ -432,10 +512,32 @@ class ProviderRouter:
         model_map = AGENT_MODEL_MAP.get(agent_role, {})
         return model_map.get(provider_name)
 
+    def acquire_concurrent_slot(self, provider_name: str) -> bool:
+        """Tenta reservar um slot de requisição concorrente. Retorna False se lotado."""
+        for p in self.providers:
+            if p.name == provider_name:
+                if p.max_concurrent > 0 and p.concurrent_requests >= p.max_concurrent:
+                    logger.debug(f"[concur] {provider_name} lotado ({p.concurrent_requests}/{p.max_concurrent})")
+                    return False
+                p.concurrent_requests += 1
+                return True
+        return False
+
+    def release_concurrent_slot(self, provider_name: str) -> None:
+        """Libera um slot de requisição concorrente."""
+        for p in self.providers:
+            if p.name == provider_name:
+                p.concurrent_requests = max(0, p.concurrent_requests - 1)
+                break
+
     def get_provider_for_agent(self, agent_role: str, exclude_names: Optional[List[str]] = None) -> Tuple[ProviderConfig, str, AsyncOpenAI]:
         exclude = exclude_names or []
         for provider in self.providers:
             if provider.name in exclude:
+                continue
+            # Pular provedores no limite de concorrência
+            if provider.max_concurrent > 0 and provider.concurrent_requests >= provider.max_concurrent:
+                logger.debug(f"[concur] Pulando {provider.name} (concurrent={provider.concurrent_requests}/{provider.max_concurrent})")
                 continue
             quota_check = check_quota(provider.name)
             if not quota_check["allowed"]:
@@ -488,13 +590,13 @@ class ProviderRouter:
             raise RuntimeError("No providers available.")
 
         if task_type == "simple":
-            candidates = ["groq", "huggingface", "ollama_local"]
+            candidates = ["ollama_vps", "groq", "huggingface", "ollama_local"]
             for c in candidates:
                 if c in healthy:
                     return self.get_provider_for_agent("the_concierge")
             return self.get_provider_for_agent("the_concierge")
         else:
-            candidates = ["openrouter", "groq", "fireworks", "together"]
+            candidates = ["ollama_vps", "openrouter", "groq", "fireworks", "together"]
             for c in candidates:
                 if c in healthy:
                     return self.get_provider_for_agent("the_senior_dev_core")

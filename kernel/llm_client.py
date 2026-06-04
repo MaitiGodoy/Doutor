@@ -66,8 +66,16 @@ async def call_llm(role: str, system: str, user: str) -> Dict:
 
         try:
             provider_cfg, model_id, client = router.get_best_provider(role, exclude_names=exclude_providers)
+            # Adquire slot de concorrência (não-bloqueante; se lotado, router pula)
+
+            # (O acquire é tentado no router.get_provider_for_agent internamente)
         except Exception as e:
             raise RuntimeError(f"All providers failed for role: {role}. Error: {e}")
+
+        # Marca slot como ocupado
+        slot_acquired = False
+        if provider_cfg.max_concurrent > 0:
+            slot_acquired = router.acquire_concurrent_slot(provider_cfg.name)
 
         try:
             logger.info(f"Calling {provider_cfg.name} for role {role} model {model_id}")
@@ -80,6 +88,7 @@ async def call_llm(role: str, system: str, user: str) -> Dict:
                 ],
                 temperature=temperature,
                 max_tokens=max_tokens,
+                timeout=120,  # Timeout global para evitar hangs
             )
 
             content = response.choices[0].message.content
@@ -107,3 +116,6 @@ async def call_llm(role: str, system: str, user: str) -> Dict:
             router.mark_failure(provider_cfg)
             exclude_providers.append(provider_cfg.name)
             await asyncio.sleep(1)
+        finally:
+            if slot_acquired:
+                router.release_concurrent_slot(provider_cfg.name)
