@@ -48,7 +48,7 @@ class AntiEntropy:
 
         self.baseline_path.parent.mkdir(parents=True, exist_ok=True)
         self.baseline_path.write_text(json.dumps(baseline, indent=2), encoding="utf-8")
-        logger.info("[AntiEntropy] Baseline v4.7 gerado e travado.")
+        logger.info("[AntiEntropy] Baseline Doutor 5.0 gerado e travado.")
 
     def _scan_dir(self, subdir: str) -> List[Dict]:
         violations = []
