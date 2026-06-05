@@ -14,63 +14,59 @@ from kernel.provider_quotas import check_quota, increment_quota, circuit_breaker
 
 logger = logging.getLogger("antimatter.router")
 
-# ─── VPS OLLAMA MODEL MAP ──────────────────────────────────────────────
-# Cada agente usa um modelo diferente para distribuir carga na VPS (7.8GB RAM, 2 vCPUs)
-# Copywriters: cada um com modelo diferente (anti-collusion + distribuição RAM)
-# Auditores: cada um com modelo diferente
-# Devs: qwen2.5-coder (otimizado para código)
-# Agentes simples: gemma3:4b (mais leve, 3.3GB)
+# ─── VPS OLLAMA MODEL MAP (Doutor 5.0) ─────────────────────────────────
+# Distribuição Hermes 3 (Nous Research) em TODOS os departamentos
+# Regra: NENHUM departamento tem dois agentes com o mesmo modelo (anti-groupthink)
+# Hermes3:8b (4.7GB) atua como "desafiador" — questiona, revisa, eleva o padrão
+# Modelos disponíveis: llama3.2:latest(2.0GB), gemma3:4b(3.3GB), mistral:7b(4.4GB),
+#   deepseek-r1:7b(4.7GB), qwen2.5-coder:7b(4.7GB), hermes3:8b(4.7GB)
+# RAM total: 7.8GB → max_concurrent=1 garante que só um modelo carregado por vez
 OLLAMA_VPS_MODEL_MAP = {
-    # ── Auditors (5 modelos diferentes para não colidir) ──
-    "the_scout":          "llama3.2:8b",     # 2.0GB — pesquisa rápida
+    # ── Auditors (5 modelos DIFERENTES — anti-collusion) ──
+    "the_scout":          "llama3.2:latest",  # 2.0GB — pesquisa rápida
     "the_polymath":       "mistral:7b",       # 4.4GB — análise profunda
     "the_architect":      "deepseek-r1:7b",   # 4.7GB — raciocínio arquitetural
-    "the_constitution":   "deepseek-r1:7b",   # 4.7GB — validação rigorosa
-    "the_ranker":         "llama3.2:8b",      # 2.0GB — ranking leve
-    "the_lateral":        "mistral:7b",       # 4.4GB — pensamento lateral
+    "the_constitution":   "hermes3:8b",       # 4.7GB — validação constitucional (Hermes)
+    "the_ranker":         "llama3.2:latest",  # 2.0GB — ranking leve
+    "the_lateral":        "hermes3:8b",       # 4.7GB — pensamento lateral (Hermes)
     # ── Copywriters (cada um num modelo diferente) ──
-    "halbert":            "llama3.2:8b",      # 2.0GB — copy agressiva
+    "halbert":            "llama3.2:latest",  # 2.0GB — copy agressiva
     "ogilvy":             "mistral:7b",       # 4.4GB — copy storytelling
-    "kennedy":            "gemma3:4b",        # 3.3GB — copy emocional
-    # ── Code Agents (qwen2.5-coder é o melhor para código) ──
+    "kennedy":            "hermes3:8b",       # 4.7GB — copy emocional c/ Hermes
+    # ── Code Agents (NUNCA dois com o mesmo modelo) ──
     "the_surgeon":        "qwen2.5-coder:7b", # 4.7GB — edição cirúrgica
     "the_inspector":      "qwen2.5-coder:7b", # 4.7GB — revisão de código
-    "the_scaler":         "qwen2.5-coder:7b", # 4.7GB — escalabilidade
+    "the_scaler":         "hermes3:8b",       # 4.7GB — escalabilidade revisada (Hermes)
     "the_omni_aa":        "qwen2.5-coder:7b", # 4.7GB — automação fullstack
-    "the_zoiao":          "qwen2.5-coder:7b", # 4.7GB — zoiao
+    "the_zoiao":          "hermes3:8b",       # 4.7GB — criatividade disruptiva (Hermes)
     "the_senior_dev":     "qwen2.5-coder:7b", # 4.7GB — dev geral
     "the_senior_dev_core":"qwen2.5-coder:7b", # 4.7GB — dev core
-    "the_senior_dev_ui":  "qwen2.5-coder:7b", # 4.7GB — dev ui
-    "the_senior_dev_ops": "qwen2.5-coder:7b", # 4.7GB — dev ops
+    "the_senior_dev_ui":  "mistral:7b",       # 4.4GB — dev ui (perspectiva diferente)
+    "the_senior_dev_ops": "gemma3:4b",        # 3.3GB — dev ops (modelo leve)
     "coder":              "qwen2.5-coder:7b", # legacy
-    # ── Direção & Planejamento ──
-    "the_director":       "llama3.2:8b",      # 2.0GB — direção estratégica
+    # ── Direção & Planejamento (perspectivas diversas) ──
+    "the_director":       "llama3.2:latest",  # 2.0GB — direção estratégica
     "the_prompt_architect":"deepseek-r1:7b",  # 4.7GB — prompt engineering
     "the_planner_alpha":  "deepseek-r1:7b",   # 4.7GB — planejamento profundo
     "the_planner_beta":   "mistral:7b",       # 4.4GB — planejamento alternativo
     "planner_a":          "deepseek-r1:7b",   # legacy
     "planner_b":          "mistral:7b",       # legacy
-    # ── Criativos & Conteúdo ──
+    # ── Criativos & Conteúdo (Hermes nas palavras) ──
     "the_wordsmiths":     "mistral:7b",       # 4.4GB — escrita criativa
     "the_voice":          "gemma3:4b",        # 3.3GB — voz/tom
     "the_empath":         "gemma3:4b",        # 3.3GB — empatia
-    "the_producer":       "llama3.2:8b",      # 2.0GB — produção
-    "the_concierge":      "llama3.2:8b",      # 2.0GB — atendimento
+    "the_producer":       "mistral:7b",       # 4.4GB — produção (raciocínio mais profundo)
+    "the_concierge":      "gemma3:4b",        # 3.3GB — atendimento empático
     "the_chronic":        "gemma3:4b",        # 3.3GB — crônica
-    "the_gossip":         "llama3.2:8b",      # 2.0GB — fofoca leve
+    "the_gossip":         "llama3.2:latest",  # 2.0GB — fofoca leve
     "the_darwin":         "mistral:7b",       # 4.4GB — evolução
     "the_minimalist":     "gemma3:4b",        # 3.3GB — minimalista (mais leve)
     "the_inner_spark":    "gemma3:4b",        # 3.3GB — spark leve
     # ── Legacy ──
     "creator":            "mistral:7b",
-    "auditor":            "llama3.2:8b",
-    "producer":           "llama3.2:8b",
+    "auditor":            "llama3.2:latest",
+    "producer":           "llama3.2:latest",
 }
-# Garantir que todo role do AGENT_MODEL_MAP tenha entrada no VPS
-for _role in AGENT_MODEL_MAP:
-    if _role not in OLLAMA_VPS_MODEL_MAP:
-        OLLAMA_VPS_MODEL_MAP[_role] = "llama3.2:8b"  # fallback seguro
-
 ANTI_COLLUSION_GROUPS = [
     ["the_architect", "the_wordsmiths", "the_scaler"],
     ["the_polymath", "the_inspector", "the_empath"],
@@ -82,19 +78,19 @@ AGENT_MODEL_MAP = {
     "the_scout":       {"openrouter": "meta-llama/llama-3.3-70b-instruct:free", "groq": "llama-3.1-8b-instant", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
     "the_polymath":    {"openrouter": "google/gemma-4-31b-it:free", "groq": "llama-3.3-70b-versatile", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
     "the_architect":   {"openrouter": "meta-llama/llama-3.3-70b-instruct:free", "groq": "llama-3.3-70b-versatile", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
-    "the_constitution":{"openrouter": "google/gemma-4-31b-it:free", "groq": "llama-3.3-70b-versatile", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
+    "the_constitution":{"openrouter": "nousresearch/hermes-3-llama-3.1-405b:free", "groq": "llama-3.3-70b-versatile", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
     "the_surgeon":     {"openrouter": "qwen/qwen3-coder:free", "groq": "qwen/qwen3-32b", "huggingface": "Qwen/Qwen2.5-Coder-32B-Instruct"},
     "the_wordsmiths":  {"openrouter": "google/gemma-4-31b-it:free", "groq": "llama-3.3-70b-versatile", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
     "the_inspector":   {"openrouter": "qwen/qwen3-coder:free", "groq": "qwen/qwen3-32b", "huggingface": "Qwen/Qwen2.5-Coder-32B-Instruct"},
-    "the_scaler":      {"openrouter": "qwen/qwen3-coder:free", "groq": "qwen/qwen3-32b", "huggingface": "Qwen/Qwen2.5-Coder-32B-Instruct"},
+    "the_scaler":      {"openrouter": "nousresearch/hermes-3-llama-3.1-405b:free", "groq": "llama-3.3-70b-versatile", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
     "the_empath":      {"openrouter": "meta-llama/llama-3.2-3b-instruct:free", "groq": "llama-3.1-8b-instant", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
     "the_voice":       {"openrouter": "google/gemma-4-31b-it:free", "groq": "llama-3.1-8b-instant", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
     "the_concierge":   {"openrouter": "meta-llama/llama-3.2-3b-instruct:free", "groq": "llama-3.1-8b-instant", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
     "the_producer":    {"openrouter": "google/gemma-4-31b-it:free", "groq": "llama-3.1-8b-instant", "huggingface": "Qwen/Qwen2.5-Coder-32B-Instruct"},
     "the_ranker":      {"openrouter": "meta-llama/llama-3.3-70b-instruct:free", "groq": "llama-3.1-8b-instant", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
-    "the_lateral":     {"openrouter": "meta-llama/llama-3.3-70b-instruct:free", "groq": "llama-3.3-70b-versatile", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
+    "the_lateral":     {"openrouter": "nousresearch/hermes-3-llama-3.1-405b:free", "groq": "llama-3.3-70b-versatile", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
     "the_omni_aa":     {"openrouter": "qwen/qwen3-coder:free", "groq": "qwen/qwen3-32b", "huggingface": "Qwen/Qwen2.5-Coder-32B-Instruct"},
-    "the_zoiao":       {"openrouter": "qwen/qwen-2.5-vl-72b-instruct:free", "groq": "qwen/qwen3-32b", "huggingface": "Qwen/Qwen2.5-Coder-32B-Instruct"},
+    "the_zoiao":       {"openrouter": "nousresearch/hermes-3-llama-3.1-405b:free", "groq": "llama-3.3-70b-versatile", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
     "the_inner_spark": {"openrouter": "meta-llama/llama-3.2-3b-instruct:free", "groq": "llama-3.1-8b-instant", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
     "the_director":    {"openrouter": "meta-llama/llama-3.3-70b-instruct:free", "groq": "llama-3.3-70b-versatile", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
     "the_senior_dev":  {"openrouter": "qwen/qwen3-coder:free", "groq": "qwen/qwen3-32b", "huggingface": "Qwen/Qwen2.5-Coder-32B-Instruct"},
@@ -110,7 +106,7 @@ AGENT_MODEL_MAP = {
     "the_senior_dev_ops":   {"openrouter": "qwen/qwen3-coder:free", "groq": "qwen/qwen3-32b", "huggingface": "Qwen/Qwen2.5-Coder-32B-Instruct"},
     "halbert":         {"openrouter": "google/gemma-4-31b-it:free", "groq": "llama-3.1-8b-instant", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
     "ogilvy":          {"openrouter": "meta-llama/llama-3.3-70b-instruct:free", "groq": "llama-3.3-70b-versatile", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
-    "kennedy":         {"openrouter": "qwen/qwen3-coder:free", "groq": "qwen/qwen3-32b", "huggingface": "Qwen/Qwen2.5-Coder-32B-Instruct"},
+    "kennedy":         {"openrouter": "nousresearch/hermes-3-llama-3.1-405b:free", "groq": "llama-3.1-8b-instant", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
     # Legacy aliases (old internal keys → same mapping as new agent roles)
     "coder":           {"openrouter": "qwen/qwen3-coder:free", "groq": "qwen/qwen3-32b", "huggingface": "Qwen/Qwen2.5-Coder-32B-Instruct"},
     "planner_a":       {"openrouter": "meta-llama/llama-3.3-70b-instruct:free", "groq": "llama-3.3-70b-versatile", "huggingface": "meta-llama/Llama-3.1-8B-Instruct"},
@@ -119,6 +115,11 @@ AGENT_MODEL_MAP = {
     "auditor":         {"openrouter": "qwen/qwen3-coder:free", "groq": "qwen/qwen3-32b", "huggingface": "Qwen/Qwen2.5-Coder-32B-Instruct"},
     "producer":        {"openrouter": "google/gemma-4-31b-it:free", "groq": "llama-3.1-8b-instant", "huggingface": "Qwen/Qwen2.5-Coder-32B-Instruct"},
 }
+
+# Garantir que todo role do AGENT_MODEL_MAP tenha entrada no VPS
+for _role in list(AGENT_MODEL_MAP.keys()):
+    if _role not in OLLAMA_VPS_MODEL_MAP:
+        OLLAMA_VPS_MODEL_MAP[_role] = "llama3.2:8b"  # fallback seguro
 
 @dataclass
 class RoleConfig:
@@ -130,34 +131,34 @@ ROLE_DEFAULTS: Dict[str, RoleConfig] = {
     "the_polymath":    RoleConfig(temperature=0.7, max_tokens=3072),
     "the_architect":   RoleConfig(temperature=0.6, max_tokens=3072),
     "the_director":    RoleConfig(temperature=0.3, max_tokens=2048),
-    "the_constitution":RoleConfig(temperature=0.2, max_tokens=2048),
+    "the_constitution":RoleConfig(temperature=0.3, max_tokens=3072),       # Hermes: validação rigorosa
     "the_surgeon":     RoleConfig(temperature=0.1, max_tokens=2048),
     "the_wordsmiths":  RoleConfig(temperature=0.8, max_tokens=4096),
     "the_inspector":   RoleConfig(temperature=0.3, max_tokens=3072),
-    "the_scaler":      RoleConfig(temperature=0.4, max_tokens=3072),
+    "the_scaler":      RoleConfig(temperature=0.3, max_tokens=3072),       # Hermes: revisão de escalabilidade
     "the_empath":      RoleConfig(temperature=0.6, max_tokens=3072),
     "the_voice":       RoleConfig(temperature=0.7, max_tokens=3072),
     "the_concierge":   RoleConfig(temperature=0.5, max_tokens=2048),
     "the_producer":    RoleConfig(temperature=0.3, max_tokens=4096),
     "the_ranker":      RoleConfig(temperature=0.3, max_tokens=2048),
-    "the_lateral":     RoleConfig(temperature=0.75, max_tokens=4096),
+    "the_lateral":     RoleConfig(temperature=0.75, max_tokens=4096),      # Hermes: pensamento lateral
     "the_senior_dev":  RoleConfig(temperature=0.2, max_tokens=4096),
     "the_minimalist":  RoleConfig(temperature=0.3, max_tokens=1024),
     "the_darwin":      RoleConfig(temperature=0.7, max_tokens=2048),
     "the_gossip":      RoleConfig(temperature=0.9, max_tokens=4096),
     "the_chronic":     RoleConfig(temperature=0.95, max_tokens=2048),
     "the_omni_aa":     RoleConfig(temperature=0.1, max_tokens=3000),
-    "the_zoiao":       RoleConfig(temperature=0.1, max_tokens=2048),
+    "the_zoiao":       RoleConfig(temperature=0.8, max_tokens=4096),       # Hermes: criatividade disruptiva
     "the_inner_spark":    RoleConfig(temperature=0.3, max_tokens=1024),
     "the_prompt_architect": RoleConfig(temperature=0.3, max_tokens=3072),
     "the_planner_alpha":    RoleConfig(temperature=0.1, max_tokens=4096),
     "the_planner_beta":     RoleConfig(temperature=0.1, max_tokens=4096),
     "the_senior_dev_core":  RoleConfig(temperature=0.1, max_tokens=4096),
-    "the_senior_dev_ui":    RoleConfig(temperature=0.1, max_tokens=4096),
-    "the_senior_dev_ops":   RoleConfig(temperature=0.1, max_tokens=4096),
+    "the_senior_dev_ui":    RoleConfig(temperature=0.3, max_tokens=3072),  # mistral: UI criativa
+    "the_senior_dev_ops":   RoleConfig(temperature=0.2, max_tokens=2048),  # gemma3: leve
     "halbert":         RoleConfig(temperature=0.9, max_tokens=3072),
     "ogilvy":          RoleConfig(temperature=0.7, max_tokens=3072),
-    "kennedy":         RoleConfig(temperature=0.8, max_tokens=3072),
+    "kennedy":         RoleConfig(temperature=0.85, max_tokens=4096),     # Hermes: copy emocional
     # Legacy aliases
     "coder":           RoleConfig(temperature=0.2, max_tokens=4096),
     "planner_a":       RoleConfig(temperature=0.6, max_tokens=3072),
@@ -213,24 +214,24 @@ def load_providers() -> List[ProviderConfig]:
                 "the_polymath":    "google/gemma-4-31b-it:free",
                 "the_architect":   "meta-llama/llama-3.3-70b-instruct:free",
                 "the_director":    "meta-llama/llama-3.3-70b-instruct:free",
-                "the_constitution":"google/gemma-4-31b-it:free",
+                "the_constitution":"nousresearch/hermes-3-llama-3.1-405b:free",
                 "the_surgeon":     "qwen/qwen3-coder:free",
                 "the_wordsmiths":  "google/gemma-4-31b-it:free",
                 "the_inspector":   "qwen/qwen3-coder:free",
-                "the_scaler":      "qwen/qwen3-coder:free",
+                "the_scaler":      "nousresearch/hermes-3-llama-3.1-405b:free",
                 "the_empath":      "meta-llama/llama-3.2-3b-instruct:free",
                 "the_voice":       "google/gemma-4-31b-it:free",
                 "the_concierge":   "meta-llama/llama-3.2-3b-instruct:free",
                 "the_producer":    "google/gemma-4-31b-it:free",
                 "the_ranker":      "meta-llama/llama-3.3-70b-instruct:free",
-                "the_lateral":     "meta-llama/llama-3.3-70b-instruct:free",
+                "the_lateral":     "nousresearch/hermes-3-llama-3.1-405b:free",
                 "the_senior_dev":  "qwen/qwen3-coder:free",
                 "the_minimalist":  "meta-llama/llama-3.2-3b-instruct:free",
                 "the_darwin":      "google/gemma-4-31b-it:free",
                 "the_gossip":      "google/gemma-4-31b-it:free",
                 "the_chronic":     "meta-llama/llama-3.2-3b-instruct:free",
                 "the_omni_aa":     "qwen/qwen3-coder:free",
-                "the_zoiao":       "qwen/qwen-2.5-vl-72b-instruct:free",
+                "the_zoiao":       "nousresearch/hermes-3-llama-3.1-405b:free",
                 "the_inner_spark": "meta-llama/llama-3.2-3b-instruct:free",
                 "the_prompt_architect": "meta-llama/llama-3.3-70b-instruct:free",
                 "the_planner_alpha":    "meta-llama/llama-3.3-70b-instruct:free",
@@ -240,7 +241,7 @@ def load_providers() -> List[ProviderConfig]:
                 "the_senior_dev_ops":   "qwen/qwen3-coder:free",
                 "halbert":         "google/gemma-4-31b-it:free",
                 "ogilvy":          "meta-llama/llama-3.3-70b-instruct:free",
-                "kennedy":         "qwen/qwen3-coder:free",
+                "kennedy":         "nousresearch/hermes-3-llama-3.1-405b:free",
             },
             extra_headers={
                 "HTTP-Referer": "https://github.com/antimatter-squad",
@@ -264,7 +265,7 @@ def load_providers() -> List[ProviderConfig]:
                 "the_surgeon":     "qwen/qwen3-32b",
                 "the_wordsmiths":  "llama-3.3-70b-versatile",
                 "the_inspector":   "qwen/qwen3-32b",
-                "the_scaler":      "qwen/qwen3-32b",
+                "the_scaler":      "llama-3.3-70b-versatile",
                 "the_empath":      "llama-3.1-8b-instant",
                 "the_voice":       "llama-3.1-8b-instant",
                 "the_concierge":   "llama-3.1-8b-instant",
@@ -277,7 +278,7 @@ def load_providers() -> List[ProviderConfig]:
                 "the_gossip":      "llama-3.3-70b-versatile",
                 "the_chronic":     "llama-3.1-8b-instant",
                 "the_omni_aa":     "qwen/qwen3-32b",
-                "the_zoiao":       "qwen/qwen3-32b",
+                "the_zoiao":       "llama-3.3-70b-versatile",
                 "the_inner_spark": "llama-3.1-8b-instant",
                 "the_prompt_architect": "llama-3.3-70b-versatile",
                 "the_planner_alpha":    "llama-3.3-70b-versatile",
@@ -287,7 +288,7 @@ def load_providers() -> List[ProviderConfig]:
                 "the_senior_dev_ops":   "qwen/qwen3-32b",
                 "halbert":         "llama-3.1-8b-instant",
                 "ogilvy":          "llama-3.3-70b-versatile",
-                "kennedy":         "qwen/qwen3-32b",
+                "kennedy":         "llama-3.1-8b-instant",
             },
         ))
     hf_key = os.getenv("HUGGINGFACE_API_KEY", "")
@@ -307,7 +308,7 @@ def load_providers() -> List[ProviderConfig]:
                 "the_surgeon":     "Qwen/Qwen2.5-Coder-32B-Instruct",
                 "the_wordsmiths":  "meta-llama/Llama-3.1-8B-Instruct",
                 "the_inspector":   "Qwen/Qwen2.5-Coder-32B-Instruct",
-                "the_scaler":      "Qwen/Qwen2.5-Coder-32B-Instruct",
+                "the_scaler":      "meta-llama/Llama-3.1-8B-Instruct",
                 "the_empath":      "meta-llama/Llama-3.1-8B-Instruct",
                 "the_voice":       "meta-llama/Llama-3.1-8B-Instruct",
                 "the_concierge":   "meta-llama/Llama-3.1-8B-Instruct",
@@ -320,7 +321,7 @@ def load_providers() -> List[ProviderConfig]:
                 "the_gossip":      "meta-llama/Llama-3.1-8B-Instruct",
                 "the_chronic":     "meta-llama/Llama-3.1-8B-Instruct",
                 "the_omni_aa":     "Qwen/Qwen2.5-Coder-32B-Instruct",
-                "the_zoiao":       "Qwen/Qwen2.5-Coder-32B-Instruct",
+                "the_zoiao":       "meta-llama/Llama-3.1-8B-Instruct",
                 "the_inner_spark": "meta-llama/Llama-3.1-8B-Instruct",
                 "the_prompt_architect": "meta-llama/Llama-3.1-8B-Instruct",
                 "the_planner_alpha":    "meta-llama/Llama-3.1-8B-Instruct",
@@ -330,7 +331,7 @@ def load_providers() -> List[ProviderConfig]:
                 "the_senior_dev_ops":   "Qwen/Qwen2.5-Coder-32B-Instruct",
                 "halbert":         "meta-llama/Llama-3.1-8B-Instruct",
                 "ogilvy":          "meta-llama/Llama-3.1-8B-Instruct",
-                "kennedy":         "Qwen/Qwen2.5-Coder-32B-Instruct",
+                "kennedy":         "meta-llama/Llama-3.1-8B-Instruct",
             },
         ))
     fireworks_key = os.getenv("FIREWORKS_API_KEY", "")
@@ -399,7 +400,7 @@ class ProviderRouter:
     def __init__(self, providers: Optional[List[ProviderConfig]] = None, db_path: str = "data/provider_quotas.db"):
         self.providers = providers or load_providers()
         self._clients: Dict[str, AsyncOpenAI] = {}
-        self._health_cache_ttl = 60
+        self._health_cache_ttl = 300  # 5 min cache (antes 60s)
         self.db_path = db_path
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self._sqlite_conn = sqlite3.connect(db_path, check_same_thread=False)
@@ -469,9 +470,16 @@ class ProviderRouter:
 
     def _get_client(self, provider: ProviderConfig) -> AsyncOpenAI:
         if provider.name not in self._clients:
+            import httpx
+            # VPS usa SSL auto-assinado -> precisa verify=False
+            if provider.name == "ollama_vps":
+                http_client = httpx.AsyncClient(verify=False, timeout=httpx.Timeout(120.0))
+            else:
+                http_client = httpx.AsyncClient(timeout=httpx.Timeout(60.0))
             self._clients[provider.name] = AsyncOpenAI(
                 api_key=provider.api_key, base_url=provider.base_url, max_retries=0,
                 default_headers=provider.extra_headers or None,
+                http_client=http_client,
             )
         return self._clients[provider.name]
 
@@ -482,9 +490,11 @@ class ProviderRouter:
         try:
             client = self._get_client(provider)
             first_model = list(provider.models.values())[0]
+            # VPS é mais lenta pra carregar modelo (7.8GB RAM, 2 vCPUs)
+            timeout_val = 60 if provider.name == "ollama_vps" else 15
             resp = await asyncio.wait_for(
                 client.chat.completions.create(model=first_model, messages=[{"role": "user", "content": "ping"}], max_tokens=5, temperature=0),
-                timeout=15,
+                timeout=timeout_val,
             )
             provider.healthy = True
             provider.consecutive_failures = 0

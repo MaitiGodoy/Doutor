@@ -19,7 +19,7 @@ ROLE_ALIASES = {
     "coder": "the_senior_dev",
     "creator": "the_wordsmiths",
     "auditor": "the_inspector",
-    "reviewer_e": "the_empath",
+    "reviewer_e": "the_constitution",      # Doutor 5.0: Hermes-backed reviewer
     "reviewer_f": "the_ranker",
     "tester": "the_surgeon",
     "optimizer": "the_scaler",
