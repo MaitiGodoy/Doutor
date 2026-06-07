@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  # ─── Núcleo Central: Hermes Agent ───
+  hermes:
+    image: nousresearch/hermes-agent:latest
+    container_name: doutor6-hermes
+    ports:
+      - '127.0.0.1:8642:8642'
+    volumes:
+      - ./data/doutor6:/root/.hermes
+      - ./doutor6_data/config.yaml:/opt/hermes/config.yaml:ro
+      - ./doutor6_data/USER.md:/root/.hermes/USER.md:ro
+      - ./doutor6_data/MEMORY.md:/root/.hermes/MEMORY.md:rw
+    environment:
+      - HERMES_HEADLESS=true
+      - HERMES_PORT=8642
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+    networks:
+      - doutor-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8642/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ─── Sidecar: Doutor MCP Server v5.0 ───
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    container_name: doutor6-mcp
+    ports:
+      - '127.0.0.1:8765:8765'
+    volumes:
+      - ./kernel:/app/kernel
+      - ./agents:/app/agents
+      - ./data:/app/data
+      - ./data/doutor6:/root/.hermes
+    environment:
+      - HERMES_URL=http://hermes:8642
+      - HERMES_API_KEY=${HERMES_API_KEY:-doutor-mcp-secret-2026}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-Sh48151623}
+      - CURRENT_SITE=${CURRENT_SITE:-all}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - VPS_HOST=0.0.0.0
+      - VPS_PORT=8765
+    depends_on:
+      hermes:
+        condition: service_healthy
+    networks:
+      - doutor-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8765/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ─── Fallback LLM: Ollama ───
+  ollama:
+    image: ollama/ollama:latest
+    container_name: doutor6-ollama
+    ports:
+      - '127.0.0.1:11434:11434'
+    volumes:
+      - ./data/ollama:/root/.ollama
+    networks:
+      - doutor-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+
+  # ─── Memória Persistente: PostgreSQL ───
+  postgres:
+    image: postgres:16-alpine
+    container_name: doutor6-pg
+    ports:
+      - '127.0.0.1:5433:5432'
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: doutor
+      POSTGRES_USER: doutor
+      POSTGRES_PASSWORD: doutor6_secret_2026
+    networks:
+      - doutor-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doutor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Cache / Queue: Redis ───
+  redis:
+    image: redis:7-alpine
+    container_name: doutor6-redis
+    ports:
+      - '127.0.0.1:6379:6379'
+    volumes:
+      - ./data/redis:/data
+    command: redis-server --appendonly yes
+    networks:
+      - doutor-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  doutor-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  ollama_data:

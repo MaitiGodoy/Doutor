@@ -1,0 +1,125 @@
+# ⚙️ Hermes Agent Config — Doutor 6.0 Headless
+
+headless: true
+port: 8642
+
+# ─── LLM Provider ───
+provider: openrouter
+model: google/gemma-4-31b-it:free
+temperature: 0.7
+max_tokens: 8192
+
+fallback:
+  provider: ollama
+  model: hermes3:8b
+  host: http://ollama:11434
+  timeout: 120s
+
+# ─── MCP Servers (Tool Gateway) ───
+mcp_servers:
+  - name: filesystem
+    transport: stdio
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-filesystem", "/root/.hermes", "/app", "/var/www"]
+    
+  - name: github
+    transport: stdio
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    
+  - name: web-search
+    transport: stdio
+    command: npx
+    args: ["-y", "@anthropic/server-web-search"]
+    
+  - name: browser-automation
+    transport: stdio
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-playwright"]
+    
+  - name: postgres
+    transport: stdio
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-postgres", "postgresql://doutor:doutor6_secret_2026@postgres:5432/doutor"]
+
+  - name: sqlite
+    transport: stdio
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-sqlite", "/root/.hermes/memory.db"]
+
+# ─── Tool Search (Dynamic Loading) ───
+tool_search:
+  enabled: true
+  max_tools_per_task: 8
+  cache_ttl: 300s
+
+# ─── Dynamic MCP Installation ───
+dynamic_mcp_install: true
+install_methods:
+  - pip
+  - npx
+
+# ─── Cron Jobs (Agendamento Nativo) ───
+cron_jobs:
+  - id: security-audit
+    schedule: "0 2 * * *"
+    task: |
+      Run full security audit on all repositories:
+      1. Check for exposed API keys in code
+      2. Verify nginx configs are secure
+      3. Check Docker container health
+      4. Validate SSL certificates expiry
+      5. Log results to MEMORY.md
+    timeout: 600s
+
+  - id: trend-research
+    schedule: "0 9 * * 1"
+    task: |
+      Agente Maconheiro: Buscar tendências de tecnologia:
+      1. Search web for latest AI/ML trends
+      2. Cross-reference with current projects
+      3. Generate innovation report
+      4. Store findings in knowledge base
+    timeout: 300s
+
+  - id: task-queue
+    schedule: "@every 1h"
+    task: |
+      Check pending task queue:
+      1. Inspect Redis queue for pending jobs
+      2. Assign tasks to available agents
+      3. Monitor execution progress
+      4. Escalate stuck tasks
+    timeout: 120s
+
+  - id: memory-maintenance
+    schedule: "@daily"
+    task: |
+      MEMORY.md maintenance:
+      1. Check if MEMORY.md exceeds 2200 chars
+      2. Summarize and prune old entries
+      3. Keep most recent lessons learned
+      4. Optimize for token efficiency
+    timeout: 60s
+
+# ─── Skills (Agent Capabilities) ───
+skills:
+  - name: doutor-council
+    description: "Council of agents for governance decisions"
+    auto_load: true
+    
+  - name: doutor-seo
+    description: "SEO orchestration and content generation"
+    auto_load: true
+    
+  - name: doutor-growth
+    description: "Growth analysis and market research"
+    auto_load: true
+
+  - name: doutor-code
+    description: "Code generation and review"
+    auto_load: false  # Load on demand via tool search
+
+  - name: doutor-comms
+    description: "Communication and notifications"
+    auto_load: false

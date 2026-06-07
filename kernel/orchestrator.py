@@ -16,6 +16,7 @@ from kernel.audit_logger import AuditLogger
 from kernel.darwin_loop import start_darwin_background
 from kernel.notify import escalate_notification
 from kernel.lateral_agent import LateralAgent
+from kernel.hermes_bridge import HermesBridge
 
 from kernel.budget_dashboard import generate_dashboard
 from kernel.health import health_status
@@ -111,9 +112,12 @@ class AntimatterOrchestrator:
         self.root_path = str(Path(__file__).parent.parent)
         warden_config = {"role": "the_warden", "max_retries": 0, "timeout": 30}
         self.warden = WardenAgent(warden_config, self.provider_router)
+        # ─── HERMES AGENT (Integrado em todas as etapas) ───
+        self.hermes = HermesBridge()
+        self.hermes_participation = []  # Log das participações do Hermes
 
     def initialize(self):
-        roles_dir = Path("agents/roles")
+        roles_dir = Path(self.root_path) / "agents" / "roles"
         if roles_dir.exists():
             for role_file in roles_dir.glob("*.json"):
                 try:
@@ -173,9 +177,22 @@ class AntimatterOrchestrator:
         run_id = self.run_id
         self.current_run_id = run_id
         data = input_data or self.input
+        self.hermes_participation = []
+
+        async def _hermes_stage(stage: str, coro):
+            """Executa Hermes em paralelo com a etapa, sem travar o pipeline"""
+            try:
+                result = await coro
+                self.hermes_participation.append({"stage": stage, "result": result})
+                return result
+            except Exception as e:
+                logger.warning(f"[Hermes] {stage} falhou (não-bloqueante): {e}")
+                return {"status": "error", "error": str(e)}
 
         try:
-            # 0. WARDEN — ANTI-DEGRADACAO (GATE SUPREMO)
+            # ═══════════════════════════════════════════════════════
+            # 0. HERMES PRE-CHECK (junto com Warden)
+            # ═══════════════════════════════════════════════════════
             logger.info("[Orchestrator] Warden: verificando integridade do Doutor...")
             warden_check = await self.warden.pre_execution_check()
             if warden_check["status"] == "blocked":
@@ -188,11 +205,20 @@ class AntimatterOrchestrator:
                 }
             logger.info("[Orchestrator] Warden: integridade confirmada. Prosseguindo.")
 
-            # 1. SNAPSHOT DE SEGURANCA (OBRIGATORIO)
+            # Hermes observa o início do pipeline (aprende)
+            asyncio.create_task(_hermes_stage("pre_check", self.hermes.participate_execution(
+                "Observar início do pipeline Doutor", {"run_id": run_id, "input": str(data)[:500]}
+            )))
+
+            # ═══════════════════════════════════════════════════════
+            # 1. SNAPSHOT + HERMES OBSERVA
+            # ═══════════════════════════════════════════════════════
             logger.info(f"[Orchestrator] {run_id} iniciado. Criando snapshot de seguranca...")
             snapshot_path = await self.agents["the_master_key"].create_full_backup(run_id)
 
-            # 2. BRIEFING + PROMPT ARCHITECT
+            # ═══════════════════════════════════════════════════════
+            # 2. BRIEFING + HERMES CONTRIBUI
+            # ═══════════════════════════════════════════════════════
             raw_briefing = data.get("user_input", "")
             architect = self.agents.get("the_prompt_architect")
             if not architect:
@@ -202,21 +228,40 @@ class AntimatterOrchestrator:
                 if isinstance(optimized, dict) and optimized.get("status") == "error":
                     optimized = {"optimized_context": data, "constraints": [], "note": "llm_fallback"}
 
-            # 3. CONSELHO OBRIGATORIO (GATE 0)
+            # Hermes contribui com insights no briefing
+            hermes_briefing = await _hermes_stage("briefing_insight", self.hermes.participate_execution(
+                "Analisar briefing e sugerir abordagens", {"briefing": str(optimized)[:1000]}
+            ))
+
+            # ═══════════════════════════════════════════════════════
+            # 3. CONSELHO + HERMES VOTA
+            # ═══════════════════════════════════════════════════════
             logger.info("[Orchestrator] Convocando Conselho para validacao do plano...")
             council = CouncilProtocol(self.agents)
             council_result = await council.convene({"briefing": optimized}, "planning")
 
+            # Hermes vota no Conselho (não-bloqueante, mas registrado)
+            hermes_council_vote = await _hermes_stage("council_vote", self.hermes.participate_council(
+                optimized, council_result
+            ))
+
             if council_result["status"] == "vetoed":
                 logger.warning(f"[Orchestrator] Conselho vetou o plano: {council_result['reason']}")
+                # Hermes aprende com o veto
+                asyncio.create_task(_hermes_stage("learning_veto", self.hermes.learn_from_pipeline(
+                    {"status": "vetoed", "reason": council_result["reason"]}
+                )))
                 return {
                     "status": "blocked",
                     "reason": "council_veto",
                     "details": council_result,
+                    "hermes_vote": hermes_council_vote,
                     "run_id": run_id
                 }
 
-            # 4. PLANNERS (Alpha + Beta em paralelo)
+            # ═══════════════════════════════════════════════════════
+            # 4. PLANNERS (Alpha + Beta + HERMES Plan C)
+            # ═══════════════════════════════════════════════════════
             plan_a, plan_b = await asyncio.gather(
                 self.agents["the_planner_alpha"].generate_plan(optimized),
                 self.agents["the_planner_beta"].generate_plan(optimized),
@@ -228,7 +273,14 @@ class AntimatterOrchestrator:
 
             selected_plan = plan_b if (isinstance(plan_b, dict) and plan_b.get("risk_level") == "low") else plan_a
 
-            # 5. DEVS EM CONSENSO (Sequencial, nao paralelo)
+            # Hermes gera Plano C (alternativa criativa) — em background
+            hermes_plan_c = await _hermes_stage("plan_c", self.hermes.participate_planning(
+                optimized, plan_a, plan_b
+            ))
+
+            # ═══════════════════════════════════════════════════════
+            # 5. DEVS + HERMES CODE REVIEW
+            # ═══════════════════════════════════════════════════════
             logger.info("[Orchestrator] Dev 1 (Core) gerando base...")
             dev1_output = await self.agents["the_senior_dev_core"].generate_code(selected_plan, optimized)
 
@@ -238,7 +290,14 @@ class AntimatterOrchestrator:
             logger.info("[Orchestrator] Dev 3 (Ops) consolidando versao final...")
             final_output = await self.agents["the_senior_dev_ops"].finalize_code(dev1_output, dev2_feedback)
 
-            # 6. SANDBOX VALIDATION (OBRIGATORIO E BLOQUEANTE)
+            # Hermes revisa o código final (em background)
+            hermes_code_review = await _hermes_stage("code_review", self.hermes.participate_code_review(
+                final_output
+            ))
+
+            # ═══════════════════════════════════════════════════════
+            # 6. SANDBOX + HERMES VALIDA
+            # ═══════════════════════════════════════════════════════
             logger.info("[Orchestrator] Validando no Sandbox...")
             from kernel.sandbox import Sandbox
             sandbox = Sandbox(self.root_path)
@@ -254,23 +313,46 @@ class AntimatterOrchestrator:
                     "run_id": run_id
                 }
 
-            # 7. GATES 3 & 4 (Lateral + Inspector + Constitution)
+            # Hermes valida a qualidade após sandbox
+            await _hermes_stage("sandbox_validation", self.hermes.participate_quality_gate(
+                validation_result, "sandbox"
+            ))
+
+            # ═══════════════════════════════════════════════════════
+            # 7. GATES 3 & 4 + HERMES AUDITA
+            # ═══════════════════════════════════════════════════════
             lateral_check = await self.lateral_agent.run_defensive_validation(self.root_path, "comprehensive")
+
+            # Hermes auditoria de ética em paralelo
+            hermes_ethics = await _hermes_stage("ethics_audit", self.hermes.participate_ethics_audit(
+                "Execução de pipeline Doutor com geração de código",
+                {"run_id": run_id, "lateral_status": lateral_check.get("status", "unknown")}
+            ))
+
             if lateral_check.get("critical"):
                 await self.agents["the_master_key"].restore_full_backup(snapshot_path)
                 return {"status": "blocked", "reason": "security_veto", "details": lateral_check}
 
-            # 8. EVAL HARNESS (METRICA DE QUALIDADE)
+            # ═══════════════════════════════════════════════════════
+            # 8. QUALIDADE + HERMES AVALIA
+            # ═══════════════════════════════════════════════════════
             from kernel.eval_harness import EvalHarness
             eval_harness = EvalHarness()
             quality = eval_harness.validate_output(final_output, "code")
+
+            # Hermes avalia qualidade (perspectiva adicional)
+            hermes_quality = await _hermes_stage("quality_eval", self.hermes.participate_quality_gate(
+                {"quality_score": quality["score"], "output": str(final_output)[:1000]}, "quality"
+            ))
 
             if quality["score"] < 0.8:
                 logger.warning(f"[Orchestrator] Qualidade baixa: {quality['score']}. Pausando para revisao humana.")
                 self.state_mgr.save_run(run_id, {"status": "awaiting_human", "quality": quality})
                 return {"status": "paused", "reason": "low_quality", "quality": quality, "run_id": run_id}
 
-            # 9. PERSISTENCIA & OBSERVABILIDADE
+            # ═══════════════════════════════════════════════════════
+            # 9. PERSISTENCIA + HERMES APRENDE
+            # ═══════════════════════════════════════════════════════
             from kernel.observability import ObservabilityDB
             obs = ObservabilityDB()
             obs.ingest_jsonl()
@@ -279,8 +361,24 @@ class AntimatterOrchestrator:
             memory = SemanticMemory()
             memory.store(run_id, f"Run {run_id} completed. Quality: {quality['score']}", ["success", "code"])
 
-            # 10. DARWIN (BACKGROUND, NAO BLOQUEANTE)
+            # Hermes APRENDE com o pipeline completo (background)
+            asyncio.create_task(_hermes_stage("learning", self.hermes.learn_from_pipeline({
+                "run_id": run_id,
+                "status": "success",
+                "quality_score": quality["score"],
+                "stages": [p["stage"] for p in self.hermes_participation]
+            })))
+
+            # ═══════════════════════════════════════════════════════
+            # 10. DARWIN + HERMES ANALISA CRESCIMENTO
+            # ═══════════════════════════════════════════════════════
             asyncio.create_task(self.agents["the_darwin"].analyze_and_mutate())
+
+            # Hermes análise de crescimento (background)
+            asyncio.create_task(_hermes_stage("growth_analysis", self.hermes.participate_growth_analysis(
+                {"run_id": run_id, "quality": quality["score"], "pipeline_result": "success"},
+                "pipeline_performance"
+            )))
 
             return {
                 "status": "success",
@@ -289,7 +387,9 @@ class AntimatterOrchestrator:
                 "artifacts": validation_result["applied"],
                 "execution_time_ms": int((time.time() - start) * 1000),
                 "council_approved": True,
-                "sandbox_validated": True
+                "sandbox_validated": True,
+                "hermes_participation": [p["stage"] for p in self.hermes_participation],
+                "hermes_participations_count": len(self.hermes_participation)
             }
 
         except Exception as e:
