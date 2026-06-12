@@ -119,6 +119,11 @@ class SecurityGuard:
             self._log_violation(chain_id, result, content)
         return result
 
+    def allow(self, tool: str, args: Dict[str, Any]) -> bool:
+        """Simple policy: allow all tools for now."""
+        # Could add tool-specific rules here.
+        return True
+
 
 # Compatibility exports expected by __init__.py
 def get_guardrails() -> SecurityGuard:

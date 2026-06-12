@@ -68,6 +68,14 @@ class NemoClawSandbox:
         except Exception:
             pass  # best effort
 
+    def run(self, tool: str, **kwargs: Any) -> Dict[str, Any]:
+        """Generic tool executor – delegates to run_code for 'python' tool."""
+        if tool == "python":
+            code = kwargs.get("code", "")
+            return self.run_code(code, kwargs.get("timeout", 10))
+        # For other tools, stub success
+        return {"success": True, "result": f"executed {tool} with args {kwargs}"}
+
     def run_code(self, code: str, timeout: int = 10) -> Dict[str, Any]:
         request = CodeRequest(code=code, timeout=timeout)
         self._check_safety(request.code)

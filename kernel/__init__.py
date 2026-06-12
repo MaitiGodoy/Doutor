@@ -1,7 +1,11 @@
 from .provider_router import ProviderRouter, load_providers, get_agent_group, get_agents_in_other_groups
 from .guards import get_guardrails, NVIDIA_Guardrails, GuardrailCheck, GuardrailResult
 from .sandbox import get_sandbox, NemoClawSandbox, ExecutionResult, SecurityError
-from .scaler import get_scaler, CuOptResourceScaler, ResourceRequest, AllocationResult
+# scaler module currently empty; expose only the class when implemented
+try:
+    from .scaler import CuOptResourceScaler
+except ImportError:
+    CuOptResourceScaler = None  # type: ignore
 from .llm_client import call_llm
 
 __all__ = [
@@ -17,9 +21,6 @@ __all__ = [
     "NemoClawSandbox",
     "ExecutionResult",
     "SecurityError",
-    "get_scaler",
     "CuOptResourceScaler",
-    "ResourceRequest",
-    "AllocationResult",
     "call_llm",
 ]

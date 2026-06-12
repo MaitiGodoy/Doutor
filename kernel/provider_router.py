@@ -178,3 +178,14 @@ def get_agent_group(agent_name: str) -> Optional[str]:
 def get_agents_in_other_groups(group: str):
     """Placeholder for cross-group agents."""
     return []
+
+
+# Singleton accessor used by autonomous loop
+_provider_router_instance: Optional[ProviderRouter] = None
+
+
+def get_provider_router() -> ProviderRouter:
+    global _provider_router_instance
+    if _provider_router_instance is None:
+        _provider_router_instance = ProviderRouter()
+    return _provider_router_instance
