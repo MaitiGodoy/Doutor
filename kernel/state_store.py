@@ -12,18 +12,24 @@ _BASE = Path(__file__).parent.parent
 DB_DIR = str(_BASE / "data")
 DB_PATH = str(_BASE / "data" / "doutor_state.db")
 
+_initialized = False
+
 
 def get_connection() -> sqlite3.Connection:
+    global _initialized
     Path(DB_DIR).mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=5000")
+    if not _initialized:
+        init_db()
+        _initialized = True
     return conn
 
 
 def init_db():
-    conn = get_connection()
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.executescript('''
         CREATE TABLE IF NOT EXISTS runs (
             id TEXT PRIMARY KEY,
@@ -187,6 +193,3 @@ def reset_daily_quotas():
     conn.execute("UPDATE provider_quotas SET used_today=0, is_blocked=0")
     conn.commit()
     conn.close()
-
-
-init_db()
