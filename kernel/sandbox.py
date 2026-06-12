@@ -1,137 +1,117 @@
-import asyncio
-import subprocess
-import tempfile
 import os
-import json
-import uuid
 import re
-from typing import Dict, Any, Optional, List
-from dataclasses import dataclass
-import logging
+import json
+import time
+import subprocess
+from typing import Dict, Any
+from pydantic import BaseModel, Field
 
-logger = logging.getLogger(__name__)
+LOG_PATH = os.getenv("EXECUTION_LOG_PATH", "/var/log/execution.jsonl")
+
+# Dangerous patterns blacklist
+DANGEROUS_PATTERNS = [
+    r"os\.system",
+    r"subprocess\.",
+    r"import\s+shutil",
+    r"import\s+os",
+    r"import\s+sys",
+    r"__import__",
+    r"eval\s*\(",
+    r"exec\s*\(",
+    r"open\s*\(",
+    r"rm\s+-rf",
+    r"shutil\.rmtree",
+    r"os\.remove",
+    r"os\.unlink",
+    r"pickle\.loads",
+    r"marshal\.loads",
+]
+DANGEROUS_RE = re.compile("|".join(DANGEROUS_PATTERNS), re.IGNORECASE)
+
+
+class CodeRequest(BaseModel):
+    code: str
+    timeout: int = Field(default=10, ge=1, le=60)
+
+
+class ExecutionResult(BaseModel):
+    status: str  # "success" | "error"
+    output: str = ""
+    error: str = ""
+
 
 class SecurityError(Exception):
     pass
 
-@dataclass
-class ExecutionResult:
-    status: str
-    output: str
-    error: Optional[str]
-    execution_time: float
-    execution_id: str
 
 class NemoClawSandbox:
-    def __init__(self, timeout: int = 15, max_memory_mb: int = 256):
-        self.timeout = timeout
-        self.max_memory_mb = max_memory_mb
-        self.audit_log: List[Dict] = []
-        
-        # PadrÃµes perigosos (Blacklist)
-        self._dangerous_patterns = [
-            r'\b__import__\b', r'\beval\s*\(', r'\bexec\s*\(', r'\bcompile\s*\(',
-            r'\bos\.(system|popen|spawn|fork)', r'\bsubprocess\b', 
-            r'\bimport\s+(os|sys|shutil|ctypes|socket)\b',
-            r'\bopen\s*\(' 
-        ]
+    def __init__(self):
+        pass
 
-    async def execute_python(self, code: str, input_data: Optional[Dict] = None) -> ExecutionResult:
-        exec_id = str(uuid.uuid4())
-        start_time = asyncio.get_event_loop().time()
+    def _check_safety(self, code: str):
+        if DANGEROUS_RE.search(code):
+            raise SecurityError("Código contém padrões perigosos bloqueados")
+
+    def _log_execution(self, request: CodeRequest, result: ExecutionResult):
+        entry = {
+            "timestamp": time.time(),
+            "code_snippet": request.code[:200],
+            "timeout": request.timeout,
+            "status": result.status,
+            "output_snippet": result.output[:200],
+            "error_snippet": result.error[:200],
+        }
+        try:
+            os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
+            with open(LOG_PATH, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except Exception:
+            pass  # best effort
+
+    def run_code(self, code: str, timeout: int = 10) -> Dict[str, Any]:
+        request = CodeRequest(code=code, timeout=timeout)
+        self._check_safety(request.code)
+
+        # Write code to a temp file
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as tmp:
+            tmp.write(request.code)
+            tmp_path = tmp.name
 
         try:
-            # 1. ValidaÃ§Ã£o de SeguranÃ§a
-            self._security_scan(code)
-            
-            # 2. Wrapping seguro
-            wrapped_code = self._wrap_code(code, input_data)
-
-            # 3. ExecuÃ§Ã£o em ambiente temporÃ¡rio
-            with tempfile.TemporaryDirectory() as tmpdir:
-                script_path = os.path.join(tmpdir, f"sandbox_{exec_id}.py")
-                with open(script_path, 'w', encoding='utf-8') as f:
-                    f.write(wrapped_code)
-
-                # 4. Processo isolado
-                proc = await asyncio.create_subprocess_exec(
-                    'python', script_path,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=tmpdir
-                )
-
-                try:
-                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self.timeout)
-                    exec_time = asyncio.get_event_loop().time() - start_time
-
-                    # Log de sucesso
-                    self._log_execution(exec_id, code, "success", exec_time)
-
-                    return ExecutionResult(
-                        status="success" if proc.returncode == 0 else "error",
-                        output=stdout.decode('utf-8', errors='replace').strip(),
-                        error=stderr.decode('utf-8', errors='replace').strip() if stderr else None,
-                        execution_time=exec_time,
-                        execution_id=exec_id
-                    )
-                except asyncio.TimeoutError:
-                    proc.kill()
-                    await proc.wait()
-                    return ExecutionResult(
-                        status="timeout",
-                        output="",
-                        error=f"Execution exceeded limit of {self.timeout}s",
-                        execution_time=float(self.timeout),
-                        execution_id=exec_id
-                    )
-
-        except SecurityError as e:
-            self._log_execution(exec_id, code, "blocked", 0.0, str(e))
-            return ExecutionResult(status="blocked", output="", error=f"Security Violation: {e}", execution_time=0.0, execution_id=exec_id)
+            proc = subprocess.run(
+                ["python3", tmp_path],
+                capture_output=True,
+                text=True,
+                timeout=request.timeout,
+            )
+            result = ExecutionResult(
+                status="success" if proc.returncode == 0 else "error",
+                output=proc.stdout,
+                error=proc.stderr,
+            )
+        except subprocess.TimeoutExpired:
+            result = ExecutionResult(status="error", error="Execution timeout")
         except Exception as e:
-            self._log_execution(exec_id, code, "crash", 0.0, str(e))
-            return ExecutionResult(status="crash", output="", error=f"Sandbox Error: {str(e)}", execution_time=0.0, execution_id=exec_id)
+            result = ExecutionResult(status="error", error=str(e))
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
 
-    def _security_scan(self, code: str):
-        for pattern in self._dangerous_patterns:
-            if re.search(pattern, code, re.IGNORECASE):
-                raise SecurityError(f"Detected dangerous pattern: {pattern}")
+        self._log_execution(request, result)
+        return result.model_dump()
 
-    def _wrap_code(self, code: str, input_data: Optional[Dict] = None) -> str:
-        # Isola o input e previne acesso ao escopo global
-        input_json = json.dumps(input_data) if input_data else "None"
-        return f'''
-import sys
-import json
 
-# InjeÃ§Ã£o Segura de Dados
-INPUT_DATA = {input_json}
-
-def __sandbox_entry_point__():
-    try:
-{chr(10).join('        ' + line for line in code.splitlines())}
-    except Exception as e:
-        print(f"USER_CODE_ERROR: {{e}}", file=sys.stderr)
-        sys.exit(1)
-
-if __name__ == "__main__":
-    __sandbox_entry_point__()
-'''
-
-    def _log_execution(self, exec_id: str, code: str, status: str, time: float, error: str = ""):
-        self.audit_log.append({
-            "id": exec_id,
-            "status": status,
-            "duration": time,
-            "error_snippet": error[:50] if error else ""
-        })
-        if len(self.audit_log) > 5000:
-            self.audit_log = self.audit_log[-5000:]
-
-_sandbox_instance = None
+# Compatibility exports expected by __init__.py
 def get_sandbox() -> NemoClawSandbox:
-    global _sandbox_instance
-    if _sandbox_instance is None:
-        _sandbox_instance = NemoClawSandbox()
-    return _sandbox_instance
+    return NemoClawSandbox()
+
+
+__all__ = [
+    "NemoClawSandbox",
+    "get_sandbox",
+    "ExecutionResult",
+    "SecurityError",
+]
