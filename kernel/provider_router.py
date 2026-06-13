@@ -7,10 +7,10 @@ import os
 import json
 import time
 import asyncio
-from enum import Enum
 from typing import Dict, Any, Optional
 import httpx
 from dataclasses import dataclass
+from kernel.circuit_breaker import CircuitBreaker, CircuitState
 
 
 @dataclass
@@ -26,42 +26,6 @@ ROLE_DEFAULTS = {
 }
 
 METRICS_PATH = os.getenv("PROVIDER_METRICS_PATH", "/var/log/provider_metrics.jsonl")
-
-
-class CircuitState(Enum):
-    CLOSED = "closed"
-    OPEN = "open"
-    HALF_OPEN = "half_open"
-
-
-class CircuitBreaker:
-    def __init__(self, name: str, failure_threshold: int = 3, reset_timeout: int = 60):
-        self.name = name
-        self.failure_threshold = failure_threshold
-        self.reset_timeout = reset_timeout
-        self.failures = 0
-        self.last_failure_time: Optional[float] = None
-        self.state = CircuitState.CLOSED
-
-    def record_success(self):
-        self.failures = 0
-        self.state = CircuitState.CLOSED
-
-    def record_failure(self):
-        self.failures += 1
-        self.last_failure_time = time.time()
-        if self.failures >= self.failure_threshold:
-            self.state = CircuitState.OPEN
-
-    def can_attempt(self) -> bool:
-        if self.state == CircuitState.CLOSED:
-            return True
-        if self.state == CircuitState.OPEN:
-            if self.last_failure_time and (time.time() - self.last_failure_time) >= self.reset_timeout:
-                self.state = CircuitState.HALF_OPEN
-                return True
-            return False
-        return True
 
 
 class SkipProvider(Exception):

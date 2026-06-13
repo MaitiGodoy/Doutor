@@ -56,6 +56,7 @@ from departments.workflow_engine import WorkflowEngine
 from meta.team_forge import TeamForge
 from meta.inner_spark import InnerSpark
 import kernel.mcp_bridge as mcp_bridge
+from agents.debate_squad import DebateSquad
 
 logger = logging.getLogger("doutor.orchestrator")
 
@@ -172,6 +173,12 @@ class AntimatterOrchestrator:
             return "infoproduct"
         return "multi"
 
+    def _compute_risk_score(self, data: Dict) -> float:
+        txt = json.dumps(data).lower()
+        high_risk_keywords = ["code", "exec", "deploy", "delete", "rm", "sudo", "root", "admin", "finance", "payment"]
+        score = sum(0.1 for k in high_risk_keywords if k in txt)
+        return min(score, 1.0)
+
     async def execute(self, input_data: Dict = None) -> Dict:
         start = time.time()
         run_id = self.run_id
@@ -260,48 +267,75 @@ class AntimatterOrchestrator:
                 }
 
             # ═══════════════════════════════════════════════════════
-            # 4. PLANNERS (Alpha + Beta + HERMES Plan C)
+            # 3b. RISK SCORE GATE — Debate Squad / Single Agent
             # ═══════════════════════════════════════════════════════
-            plan_a, plan_b = await asyncio.gather(
-                self.agents["the_planner_alpha"].generate_plan(optimized),
-                self.agents["the_planner_beta"].generate_plan(optimized),
-                return_exceptions=True
-            )
-
-            if isinstance(plan_a, Exception) or isinstance(plan_b, Exception):
-                raise RuntimeError(f"Falha na geracao de planos: A={'ok' if not isinstance(plan_a, Exception) else plan_a}, B={'ok' if not isinstance(plan_b, Exception) else plan_b}")
-
-            selected_plan = plan_b if (isinstance(plan_b, dict) and plan_b.get("risk_level") == "low") else plan_a
-
-            # Hermes gera Plano C (alternativa criativa) — em background
-            hermes_plan_c = await _hermes_stage("plan_c", self.hermes.participate_planning(
-                optimized, plan_a, plan_b
-            ))
-
-            # ═══════════════════════════════════════════════════════
-            # 5. DEVS + HERMES CODE REVIEW
-            # ═══════════════════════════════════════════════════════
-            logger.info("[Orchestrator] Dev 1 (Core) gerando base...")
-            dev1_output = await self.agents["the_senior_dev_core"].generate_code(selected_plan, optimized)
-
-            logger.info("[Orchestrator] Dev 2 (UI) revisando e sugerindo...")
-            dev2_feedback = await self.agents["the_senior_dev_ui"].review_and_suggest(dev1_output.get("files", {}))
-
-            logger.info("[Orchestrator] Dev 3 (Ops) consolidando versao final...")
-            final_output = await self.agents["the_senior_dev_ops"].finalize_code(dev1_output, dev2_feedback)
-
-            # Hermes revisa o código final (em background)
-            hermes_code_review = await _hermes_stage("code_review", self.hermes.participate_code_review(
-                final_output
-            ))
+            risk_score = self._compute_risk_score(data)
+            logger.info(f"[Orchestrator] risk_score={risk_score:.2f} (threshold=0.6)")
+            use_debate = risk_score >= 0.6
+            debate_result = None
+            if use_debate:
+                logger.info(f"[Orchestrator] risk_score >= 0.6 → routing to Debate Squad")
+                debate = DebateSquad(max_rounds=3)
+                debate_result = await debate.run(raw_briefing, {"run_id": run_id})
+                self.artifacts["debate_squad"] = {
+                    "final_answer": debate_result.final_answer,
+                    "rounds": debate_result.total_rounds,
+                    "consensus": debate_result.consensus_reached,
+                    "force_resolved": debate_result.force_resolved,
+                }
 
             # ═══════════════════════════════════════════════════════
-            # 6. SANDBOX + HERMES VALIDA
+            # 4. PLANNERS + 5. DEVS + 6. SANDBOX
             # ═══════════════════════════════════════════════════════
-            logger.info("[Orchestrator] Validando no Sandbox...")
-            from kernel.sandbox import Sandbox
-            sandbox = Sandbox(self.root_path)
-            validation_result = sandbox.validate_and_apply(final_output.get("files", {}), run_id)
+            if use_debate:
+                logger.info("[Orchestrator] Debate route → using debate result, skipping code pipeline")
+                self.artifacts["debate"] = {
+                    "answer": debate_result.final_answer,
+                    "rounds": debate_result.total_rounds,
+                    "consensus": debate_result.consensus_reached,
+                }
+                final_output = {"files": {"debate_result.txt": debate_result.final_answer}, "source": "debate_squad"}
+                validation_result = {"status": "approved", "applied": []}
+                quality = {"score": 0.85, "details": {"debate_rounds": debate_result.total_rounds, "consensus": debate_result.consensus_reached}}
+            else:
+                plan_a, plan_b = await asyncio.gather(
+                    self.agents["the_planner_alpha"].generate_plan(optimized),
+                    self.agents["the_planner_beta"].generate_plan(optimized),
+                    return_exceptions=True
+                )
+
+                if isinstance(plan_a, Exception) or isinstance(plan_b, Exception):
+                    raise RuntimeError(f"Falha na geracao de planos: A={'ok' if not isinstance(plan_a, Exception) else plan_a}, B={'ok' if not isinstance(plan_b, Exception) else plan_b}")
+
+                selected_plan = plan_b if (isinstance(plan_b, dict) and plan_b.get("risk_level") == "low") else plan_a
+
+                # Hermes gera Plano C (alternativa criativa) — em background
+                hermes_plan_c = await _hermes_stage("plan_c", self.hermes.participate_planning(
+                    optimized, plan_a, plan_b
+                ))
+
+                # ═══════════════════════════════════════════════════════
+                # 5. DEVS + HERMES CODE REVIEW
+                # ═══════════════════════════════════════════════════════
+                logger.info("[Orchestrator] Dev 1 (Core) gerando base...")
+                dev1_output = await self.agents["the_senior_dev_core"].generate_code(selected_plan, optimized)
+
+                logger.info("[Orchestrator] Dev 2 (UI) revisando e sugerindo...")
+                dev2_feedback = await self.agents["the_senior_dev_ui"].review_and_suggest(dev1_output.get("files", {}))
+
+                logger.info("[Orchestrator] Dev 3 (Ops) consolidando versao final...")
+                final_output = await self.agents["the_senior_dev_ops"].finalize_code(dev1_output, dev2_feedback)
+
+                # Hermes revisa o código final (em background)
+                hermes_code_review = await _hermes_stage("code_review", self.hermes.participate_code_review(final_output))
+
+                # ═══════════════════════════════════════════════════════
+                # 6. SANDBOX + HERMES VALIDA
+                # ═══════════════════════════════════════════════════════
+                logger.info("[Orchestrator] Validando no Sandbox...")
+                from kernel.sandbox import Sandbox
+                sandbox = Sandbox(self.root_path)
+                validation_result = sandbox.validate_and_apply(final_output.get("files", {}), run_id)
 
             if validation_result["status"] == "rejected":
                 logger.error(f"[Orchestrator] Sandbox rejeitou codigo: {validation_result['errors']}")
@@ -336,14 +370,15 @@ class AntimatterOrchestrator:
             # ═══════════════════════════════════════════════════════
             # 8. QUALIDADE + HERMES AVALIA
             # ═══════════════════════════════════════════════════════
-            from kernel.eval_harness import EvalHarness
-            eval_harness = EvalHarness()
-            quality = eval_harness.validate_output(final_output, "code")
+            if not use_debate:
+                from kernel.eval_harness import EvalHarness
+                eval_harness = EvalHarness()
+                quality = eval_harness.validate_output(final_output, "code")
 
-            # Hermes avalia qualidade (perspectiva adicional)
-            hermes_quality = await _hermes_stage("quality_eval", self.hermes.participate_quality_gate(
-                {"quality_score": quality["score"], "output": str(final_output)[:1000]}, "quality"
-            ))
+                # Hermes avalia qualidade (perspectiva adicional)
+                hermes_quality = await _hermes_stage("quality_eval", self.hermes.participate_quality_gate(
+                    {"quality_score": quality["score"], "output": str(final_output)[:1000]}, "quality"
+                ))
 
             if quality["score"] < 0.8:
                 logger.warning(f"[Orchestrator] Qualidade baixa: {quality['score']}. Pausando para revisao humana.")
