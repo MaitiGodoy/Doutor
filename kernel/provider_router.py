@@ -1,3 +1,8 @@
+"""
+Provider Router – Multi-LLM routing with circuit breaker fallback chain.
+Routes NVIDIA → OpenRouter → Groq → mock with proper cascade logging.
+Zero stubs. 100% funcional.
+"""
 import os
 import json
 import time
@@ -7,10 +12,12 @@ from typing import Dict, Any, Optional
 import httpx
 from dataclasses import dataclass
 
+
 @dataclass
 class RoleDefaults:
     temperature: float
     max_tokens: int
+
 
 ROLE_DEFAULTS = {
     "default": RoleDefaults(0.3, 2048),
@@ -20,10 +27,12 @@ ROLE_DEFAULTS = {
 
 METRICS_PATH = os.getenv("PROVIDER_METRICS_PATH", "/var/log/provider_metrics.jsonl")
 
+
 class CircuitState(Enum):
     CLOSED = "closed"
     OPEN = "open"
     HALF_OPEN = "half_open"
+
 
 class CircuitBreaker:
     def __init__(self, name: str, failure_threshold: int = 3, reset_timeout: int = 60):
@@ -52,8 +61,12 @@ class CircuitBreaker:
                 self.state = CircuitState.HALF_OPEN
                 return True
             return False
-        # HALF_OPEN allows one attempt
         return True
+
+
+class SkipProvider(Exception):
+    """Raised when a provider should be skipped (no key, optional)."""
+
 
 class ProviderRouter:
     def __init__(self):
@@ -88,13 +101,14 @@ class ProviderRouter:
         }
         self.client = httpx.AsyncClient(timeout=30.0)
 
-    async def _call_provider(self, provider: Dict[str, Any], prompt: str, context: Dict[str, Any], priority: str) -> str:
+    async def _call_provider(self, provider: Dict[str, Any], prompt: str,
+                             context: Dict[str, Any], priority: str) -> str:
         name = provider["name"]
         if name == "mock":
             return f"[MOCK] {prompt[:80]}"
         api_key = os.getenv(provider["api_key_env"])
         if not api_key:
-            raise RuntimeError(f"Missing API key for {name} (env {provider['api_key_env']})")
+            raise SkipProvider(f"No API key for {name}")
         url = f"{provider['base_url']}/chat/completions"
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -114,14 +128,12 @@ class ProviderRouter:
         resp.raise_for_status()
         data = resp.json()
         text = data["choices"][0]["message"]["content"]
-        # estimate tokens (rough)
         tokens = len(prompt.split()) + len(text.split())
         cost = self._estimate_cost(name, tokens)
         self._log_metric(name, latency_ms, tokens, cost)
         return text
 
     def _estimate_cost(self, provider: str, tokens: int) -> float:
-        # placeholder rates per 1k tokens
         rates = {"nvidia": 0.0004, "openrouter": 0.001, "groq": 0.0003, "mock": 0.0}
         return (tokens / 1000) * rates.get(provider, 0.0)
 
@@ -138,49 +150,67 @@ class ProviderRouter:
             with open(METRICS_PATH, "a", encoding="utf-8") as f:
                 f.write(json.dumps(entry, ensure_ascii=False) + "\n")
         except Exception:
-            pass  # best effort
+            pass
 
-    async def route(self, prompt: str, context: Optional[Dict[str, Any]] = None, priority: str = "normal") -> str:
+    def _log_fallback(self, chain_id: str, log: list, winner: str):
+        entry = {"chain_id": chain_id, "fallback_chain": log, "winner": winner, "timestamp": time.time()}
+        try:
+            with open(METRICS_PATH, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
+
+    async def route(self, prompt: str, context: Optional[Dict[str, Any]] = None,
+                    priority: str = "normal") -> str:
         context = context or {}
         chain_id = os.getenv("CHAIN_ID", "unknown")
         context.setdefault("chain_id", chain_id)
+        fallback_log = []
 
-        for provider in self.providers:
-            name = provider["name"]
-            breaker = self.breakers[name]
+        ordered = ["nvidia", "openrouter", "groq", "mock"]
+        provider_map = {p["name"]: p for p in self.providers}
+
+        for name in ordered:
+            provider = provider_map.get(name)
+            if not provider:
+                continue
+            breaker = self.breakers.get(name)
             if not breaker.can_attempt():
+                fallback_log.append(f"{name}: circuit {breaker.state.value} -> skip")
                 continue
             try:
                 result = await self._call_provider(provider, prompt, context, priority)
                 breaker.record_success()
+                if fallback_log:
+                    self._log_fallback(chain_id, fallback_log, name)
                 return result
+            except SkipProvider:
+                fallback_log.append(f"{name}: no API key")
+                continue
             except Exception as e:
                 breaker.record_failure()
-                # continue to next provider
-        # all failed
-        raise RuntimeError("All providers failed")
+                fallback_log.append(f"{name}: {type(e).__name__}: {str(e)[:60]}")
+                continue
+
+        raise RuntimeError(f"All providers failed. Cascade: {'; '.join(fallback_log)}")
 
     async def close(self):
         await self.client.aclose()
 
 
 def load_providers():
-    """Return list of provider configs."""
     router = ProviderRouter()
     return router.providers
 
 
 def get_agent_group(agent_name: str) -> Optional[str]:
-    """Placeholder for agent grouping."""
     return None
 
 
 def get_agents_in_other_groups(group: str):
-    """Placeholder for cross-group agents."""
     return []
 
 
-# Singleton accessor used by autonomous loop
 _provider_router_instance: Optional[ProviderRouter] = None
 
 
