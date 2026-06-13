@@ -1,22 +1,29 @@
 {
-  "no_pii": {
-    "description": "Block any personally identifiable information",
-    "block_keywords": ["cpf", "cnpj", "email", "phone", "endereço"],
-    "enforcement_rule": "True\n# placeholder: sandbox rule would inspect context for PII\n"
+  "policies": {
+    "no_pii": {
+      "description": "Block any personally identifiable information",
+      "block_keywords": ["cpf", "cnpj", "email", "phone", "endere\u00e7o"],
+      "enforcement_rule": "True"
+    },
+    "no_toxic": {
+      "description": "Block toxic language",
+      "block_keywords": ["hate", "kill", "violence", "\u00f3dio", "matar", "viol\u00eancia"],
+      "enforcement_rule": "True"
+    },
+    "no_prompt_injection": {
+      "description": "Block prompt injection attempts",
+      "block_keywords": ["ignore previous", "system prompt", "override", "bypass"],
+      "enforcement_rule": "True"
+    },
+    "resource_limit": {
+      "description": "Enforce resource usage limits",
+      "block_keywords": [],
+      "enforcement_rule": "ctx.get('tokens', 0) < 4000"
+    }
   },
-  "no_toxic": {
-    "description": "Block toxic language",
-    "block_keywords": ["hate", "kill", "violence", "ódio", "matar", "violência"],
-    "enforcement_rule": "True\n"
-  },
-  "no_prompt_injection": {
-    "description": "Block prompt injection attempts",
-    "block_keywords": ["ignore previous", "system prompt", "override", "bypass"],
-    "enforcement_rule": "True\n"
-  },
-  "resource_limit": {
-    "description": "Enforce resource usage limits",
-    "block_keywords": [],
-    "enforcement_rule": "ctx.get('tokens', 0) < 4000\n"
+  "global": {
+    "risk_threshold": 0.7,
+    "audit_log_path": "logs/warden_audit.jsonl",
+    "default_action": "block"
   }
 }
