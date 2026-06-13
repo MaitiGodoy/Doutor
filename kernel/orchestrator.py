@@ -24,7 +24,7 @@ from agents.scout_agent import ScoutAgent
 from agents.polymath_agent import PolymathAgent
 from agents.strategy_agent import StrategyAgent
 from agents.director_agent import DirectorAgent
-from agents.governance import ConstitutionAgent
+from agents.constitution import ConstitutionAgent
 from agents.wordsmiths_agent import WordsmithsAgent
 from agents.voice_agent import VoiceAgent
 from agents.dual_output_agent import DualOutputAgent
