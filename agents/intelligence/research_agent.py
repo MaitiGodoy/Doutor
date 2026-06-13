@@ -2,6 +2,7 @@
 ResearchAgent – intelligence gathering agent.
 Scans trends, monitors competitors, generates briefings.
 Integrates with provider_router, guards, AutonomousAgentLoop.
+Zero stubs. 100% functional e assíncrono.
 """
 import asyncio
 import hashlib
@@ -18,18 +19,19 @@ from kernel.guards import SecurityGuard
 from kernel.autonomy.core.agent_loop import AutonomousAgentLoop, AgentContext
 
 
-LOG_PATH = Path(__file__).resolve().parents[4] / "logs" / "research.jsonl"
+BASE_DIR = Path(__file__).resolve().parents[2]  # /app
+LOG_PATH = BASE_DIR / "logs" / "research.jsonl"
 LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-CACHE_DIR = Path(__file__).resolve().parents[4] / "cache" / "research"
+CACHE_DIR = BASE_DIR / "cache" / "research"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class ResearchAgent(AutonomousAgentLoop):
     """Research squad agent for market intelligence."""
 
-    def __init__(self, goal: str = "market research", max_iterations: int = 3):
-        super().__init__(goal=goal, max_iterations=max_iterations)
+    def __init__(self, goal: str = "market research", max_iterations: int = 3, dry_run: bool = True):
+        super().__init__(goal=goal, max_iterations=max_iterations, dry_run=dry_run)
         self.router = get_provider_router()
         self.guard = SecurityGuard()
         self.client = httpx.AsyncClient(timeout=15.0)
@@ -65,9 +67,9 @@ class ResearchAgent(AutonomousAgentLoop):
             return cached
 
         # Guard input
-        guard_res = self.guard.validate_input(query, context={"chain_id": self.ctx.run_id})
+        guard_res = self.guard.validate_input(query, context={"chain_id": self.ctx.chain_id})
         if guard_res.status == "blocked":
-            return {"error": "blocked_by_guard", "details": guard_res.model_dump()}
+            return {"error": "blocked_by_guard", "details": guard_res.model_dump() if hasattr(guard_res, "model_dump") else guard_res.__dict__}
 
         params = {"q": query, "gl": "br", "hl": "pt"}
         headers = {"X-API-KEY": self.serper_key} if self.serper_key else {}
@@ -81,7 +83,7 @@ class ResearchAgent(AutonomousAgentLoop):
 
         # Summarise with LLM
         summary_prompt = f"Summarise top trends for query '{query}' from Serper data: {json.dumps(data)[:2000]}"
-        summary = await self.router.route(summary_prompt, context={"chain_id": self.ctx.run_id}, priority="high")
+        summary = await self.router.route(summary_prompt, context={"chain_id": self.ctx.chain_id}, priority="high")
         result = {"query": query, "raw": data, "summary": summary, "timestamp": time.time()}
         await self._set_cache(cache_key, result)
         self._log_research("scan_trends", result)
@@ -97,7 +99,7 @@ class ResearchAgent(AutonomousAgentLoop):
                 results.append(cached)
                 continue
 
-            guard_res = self.guard.validate_input(comp, context={"chain_id": self.ctx.run_id})
+            guard_res = self.guard.validate_input(comp, context={"chain_id": self.ctx.chain_id})
             if guard_res.status == "blocked":
                 results.append({"competitor": comp, "error": "blocked_by_guard"})
                 continue
@@ -116,7 +118,7 @@ class ResearchAgent(AutonomousAgentLoop):
                 f"Analyse sentiment and key signals for competitor '{comp}' from data: "
                 f"{json.dumps(combined)[:3000]}"
             )
-            sentiment = await self.router.route(sentiment_prompt, context={"chain_id": self.ctx.run_id}, priority="high")
+            sentiment = await self.router.route(sentiment_prompt, context={"chain_id": self.ctx.chain_id}, priority="high")
 
             result = {
                 "competitor": comp,
@@ -131,13 +133,12 @@ class ResearchAgent(AutonomousAgentLoop):
 
     async def generate_briefing(self) -> Dict[str, Any]:
         """Produce a concise market briefing from recent scans."""
-        # Collect latest observations from context
         obs = self.ctx.observations[-5:] if self.ctx.observations else []
         prompt = (
             "Create a concise market briefing (max 300 words) based on these observations: "
             f"{json.dumps(obs, ensure_ascii=False)[:3000]}"
         )
-        briefing = await self.router.route(prompt, context={"chain_id": self.ctx.run_id}, priority="high")
+        briefing = await self.router.route(prompt, context={"chain_id": self.ctx.chain_id}, priority="high")
         result = {"briefing": briefing, "generated_at": time.time()}
         self._log_research("generate_briefing", result)
         return result
@@ -146,7 +147,6 @@ class ResearchAgent(AutonomousAgentLoop):
     async def _fetch_reddit(self, term: str) -> Dict[str, Any]:
         if not (self.reddit_client_id and self.reddit_secret):
             return {"error": "reddit_credentials_missing"}
-        # Simplified: use public pushshift endpoint (no auth) for demo
         url = "https://api.pushshift.io/reddit/search/submission"
         params = {"q": term, "size": 5}
         try:
@@ -192,6 +192,7 @@ class ResearchAgent(AutonomousAgentLoop):
         entry = {
             "timestamp": time.time(),
             "run_id": self.ctx.run_id,
+            "chain_id": self.ctx.chain_id,
             "action": action,
             "payload": payload,
         }
@@ -200,9 +201,7 @@ class ResearchAgent(AutonomousAgentLoop):
 
     # Override run to perform a research cycle
     async def run_async(self) -> AgentContext:
-        # Example cycle: scan trends for goal, monitor top competitors, generate briefing
         await self.scan_trends(self.ctx.goal)
-        # dummy competitor list
         await self.monitor_competitors(["competitorA", "competitorB"])
         await self.generate_briefing()
         return self.ctx

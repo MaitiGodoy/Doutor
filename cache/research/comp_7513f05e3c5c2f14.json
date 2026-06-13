@@ -1,0 +1,1 @@
+{"competitor": "OpenAI", "sources": {"reddit": {"error": "reddit_credentials_missing"}, "news": {"error": "newsapi_key_missing"}, "producthunt": {"error": "producthunt_key_missing"}}, "sentiment": "[MOCK] Analyse sentiment and key signals for competitor 'OpenAI' from data: {\"reddit\": ", "timestamp": 1781368623.5343733}
