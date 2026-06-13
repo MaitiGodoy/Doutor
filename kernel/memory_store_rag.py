@@ -99,7 +99,6 @@ class MemoryStoreRAG(MemoryStore):
         self.embedding_dim = 384
 
     def _mock_embed(self, text: str) -> List[float]:
-        """Generate a deterministic mock embedding from text hash."""
         h = hashlib.sha256(text.encode()).digest()
         return [((h[i % len(h)] / 255.0) * 2 - 1) for i in range(self.embedding_dim)]
 
@@ -115,12 +114,12 @@ class MemoryStoreRAG(MemoryStore):
         doc_id = hashlib.sha256(text.encode()).hexdigest()[:16]
         for chunk in chunks:
             emb = self._mock_embed(chunk["text"])
-            meta = {"doc_id": doc_id, "event_id": event_id, "chunk": chunk["index"], ** (metadata or {})}
+            meta = {"doc_id": doc_id, "event_id": event_id, "chunk": chunk["index"], **(metadata or {})}
             self.index.add(chunk["text"], emb, meta)
         return doc_id
 
     async def index_all_events(self) -> int:
-        events = self.get_events(limit=500)
+        events = await self.get_events(limit=500)
         indexed = 0
         for e in events:
             text = json.dumps(e.get("data", {}), ensure_ascii=False)
@@ -131,12 +130,12 @@ class MemoryStoreRAG(MemoryStore):
     async def semantic_search(self, query: str, top_k: int = 5) -> Dict[str, Any]:
         return await self.rag_search(query, top_k)
 
-    def get_stats(self) -> Dict[str, Any]:
-        base = super().get_stats()
+    async def get_stats(self) -> Dict[str, Any]:
+        base = await super().get_stats()
         base["rag_vectors"] = len(self.index.vectors)
         base["vector_namespace"] = self.namespace
         base["embedding_dim"] = self.embedding_dim
         return base
 
-    def stats(self) -> Dict[str, Any]:
-        return self.get_stats()
+    async def stats(self) -> Dict[str, Any]:
+        return await self.get_stats()

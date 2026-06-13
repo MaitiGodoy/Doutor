@@ -2,10 +2,10 @@
 Memory Store — Event Sourcing + CQRS para o Doutor v5.
 
 SQLite WAL mode para logs de eventos, projeções assíncronas,
-read models em memória. Zero dependências externas pesadas.
+read models em memória. aiosqlite para segurança async.
 """
 
-import sqlite3
+import aiosqlite
 import json
 import asyncio
 import os
@@ -28,15 +28,21 @@ class MemoryStore:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._projections: dict[str, asyncio.Task] = {}
         self._read_models: dict[str, dict] = {}
-        self._init_db()
+        self._event_log_path: Optional[Path] = None
+        self._db_ready: bool = False
         self._init_event_log()
 
-    def _init_db(self):
+    async def _ensure_db(self):
+        if not self._db_ready:
+            await self._init_db()
+            self._db_ready = True
+
+    async def _init_db(self):
         """Inicializa SQLite com WAL mode."""
-        with sqlite3.connect(str(self.db_path)) as conn:
-            conn.execute("PRAGMA journal_mode=WAL;")
-            conn.execute("PRAGMA synchronous=NORMAL;")
-            conn.execute("""
+        async with aiosqlite.connect(str(self.db_path)) as conn:
+            await conn.execute("PRAGMA journal_mode=WAL;")
+            await conn.execute("PRAGMA synchronous=NORMAL;")
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS events (
                     id TEXT PRIMARY KEY,
                     aggregate_id TEXT NOT NULL,
@@ -46,15 +52,15 @@ class MemoryStore:
                     version INTEGER NOT NULL DEFAULT 1
                 )
             """)
-            conn.execute("""
+            await conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_events_aggregate
                 ON events(aggregate_id)
             """)
-            conn.execute("""
+            await conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_events_type
                 ON events(event_type)
             """)
-            conn.execute("""
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS snapshots (
                     aggregate_id TEXT PRIMARY KEY,
                     state TEXT NOT NULL,
@@ -62,7 +68,7 @@ class MemoryStore:
                     timestamp REAL NOT NULL
                 )
             """)
-            conn.commit()
+            await conn.commit()
 
     def _init_event_log(self):
         """Garante diretório para log de eventos JSON."""
@@ -70,11 +76,12 @@ class MemoryStore:
         log_dir.mkdir(exist_ok=True)
         self._event_log_path = log_dir / "events.jsonl"
 
-    def append_event(self, event: dict) -> str:
+    async def append_event(self, event: dict) -> str:
         """Appenda evento ao store. Retorna ID do evento."""
+        await self._ensure_db()
         event_id = str(uuid.uuid4())
         timestamp = time.time()
-        version = self._next_version(event.get("aggregate_id", ""))
+        version = await self._next_version(event.get("aggregate_id", ""))
 
         row = (
             event_id,
@@ -85,12 +92,12 @@ class MemoryStore:
             version,
         )
 
-        with sqlite3.connect(str(self.db_path)) as conn:
-            conn.execute(
+        async with aiosqlite.connect(str(self.db_path)) as conn:
+            await conn.execute(
                 "INSERT INTO events (id, aggregate_id, event_type, data, timestamp, version) VALUES (?, ?, ?, ?, ?, ?)",
                 row,
             )
-            conn.commit()
+            await conn.commit()
 
         self._write_event_log({
             "event_id": event_id,
@@ -105,14 +112,15 @@ class MemoryStore:
 
         return event_id
 
-    def _next_version(self, aggregate_id: str) -> int:
+    async def _next_version(self, aggregate_id: str) -> int:
         """Calcula próximo version para o aggregate."""
-        with sqlite3.connect(str(self.db_path)) as conn:
-            cur = conn.execute(
+        async with aiosqlite.connect(str(self.db_path)) as conn:
+            cur = await conn.execute(
                 "SELECT COALESCE(MAX(version), 0) FROM events WHERE aggregate_id = ?",
                 (aggregate_id,),
             )
-            return (cur.fetchone()[0] or 0) + 1
+            row = await cur.fetchone()
+            return (row[0] or 0) + 1
 
     def _write_event_log(self, entry: dict):
         """Escreve entrada no log JSONL."""
@@ -122,7 +130,7 @@ class MemoryStore:
         except OSError:
             pass
 
-    def get_events(
+    async def get_events(
         self,
         aggregate_id: str = None,
         event_type: str = None,
@@ -130,6 +138,7 @@ class MemoryStore:
         offset: int = 0,
     ) -> list[dict]:
         """Retorna eventos com filtros opcionais."""
+        await self._ensure_db()
         query = "SELECT id, aggregate_id, event_type, data, timestamp, version FROM events"
         params = []
         conditions = []
@@ -146,48 +155,53 @@ class MemoryStore:
         query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
 
-        with sqlite3.connect(str(self.db_path)) as conn:
-            conn.row_factory = sqlite3.Row
-            cur = conn.execute(query, params)
+        async with aiosqlite.connect(str(self.db_path)) as conn:
+            conn.row_factory = aiosqlite.Row
+            cur = await conn.execute(query, params)
+            rows = await cur.fetchall()
             results = []
-            for row in cur.fetchall():
+            for row in rows:
                 d = dict(row)
                 d["data"] = json.loads(d["data"])
                 results.append(d)
             return results
 
-    def get_aggregate_events(self, aggregate_id: str) -> list[dict]:
+    async def get_aggregate_events(self, aggregate_id: str) -> list[dict]:
         """Retorna todos os eventos de um aggregate em ordem."""
-        return self.get_events(aggregate_id=aggregate_id, limit=10000)
+        return await self.get_events(aggregate_id=aggregate_id, limit=10000)
 
-    def count_events(self, event_type: str = None) -> int:
+    async def count_events(self, event_type: str = None) -> int:
         """Conta eventos, opcionalmente por tipo."""
-        with sqlite3.connect(str(self.db_path)) as conn:
+        await self._ensure_db()
+        async with aiosqlite.connect(str(self.db_path)) as conn:
             if event_type:
-                cur = conn.execute(
+                cur = await conn.execute(
                     "SELECT COUNT(*) FROM events WHERE event_type = ?", (event_type,)
                 )
             else:
-                cur = conn.execute("SELECT COUNT(*) FROM events")
-            return cur.fetchone()[0] or 0
+                cur = await conn.execute("SELECT COUNT(*) FROM events")
+            row = await cur.fetchone()
+            return row[0] or 0
 
-    def save_snapshot(self, aggregate_id: str, state: dict, version: int) -> None:
+    async def save_snapshot(self, aggregate_id: str, state: dict, version: int) -> None:
         """Salva snapshot do estado de um aggregate."""
-        with sqlite3.connect(str(self.db_path)) as conn:
-            conn.execute(
+        await self._ensure_db()
+        async with aiosqlite.connect(str(self.db_path)) as conn:
+            await conn.execute(
                 "INSERT OR REPLACE INTO snapshots (aggregate_id, state, version, timestamp) VALUES (?, ?, ?, ?)",
                 (aggregate_id, json.dumps(state, ensure_ascii=False), version, time.time()),
             )
-            conn.commit()
+            await conn.commit()
 
-    def get_snapshot(self, aggregate_id: str) -> Optional[dict]:
+    async def get_snapshot(self, aggregate_id: str) -> Optional[dict]:
         """Recupera último snapshot do aggregate."""
-        with sqlite3.connect(str(self.db_path)) as conn:
-            conn.row_factory = sqlite3.Row
-            cur = conn.execute(
+        await self._ensure_db()
+        async with aiosqlite.connect(str(self.db_path)) as conn:
+            conn.row_factory = aiosqlite.Row
+            cur = await conn.execute(
                 "SELECT * FROM snapshots WHERE aggregate_id = ?", (aggregate_id,)
             )
-            row = cur.fetchone()
+            row = await cur.fetchone()
             if row:
                 d = dict(row)
                 d["state"] = json.loads(d["state"])
@@ -265,9 +279,9 @@ class MemoryStore:
             return model["state"]
         return None
 
-    def rebuild_projection(self, name: str) -> int:
+    async def rebuild_projection(self, name: str) -> int:
         """Reconstrói projeção a partir do zero."""
-        events = self.get_events(limit=50000)
+        events = await self.get_events(limit=50000)
         model = {"events": [], "state": {}}
         for e in events:
             model["events"].append(e["id"])
@@ -287,19 +301,25 @@ class MemoryStore:
         self._read_models[name] = model
         return len(events)
 
-    def get_stats(self) -> dict:
+    async def get_stats(self) -> dict:
         """Estatísticas do store."""
-        with sqlite3.connect(str(self.db_path)) as conn:
-            total = conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
-            snap = conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0]
-            types = conn.execute(
+        await self._ensure_db()
+        async with aiosqlite.connect(str(self.db_path)) as conn:
+            cur_total = await conn.execute("SELECT COUNT(*) FROM events")
+            row_total = await cur_total.fetchone()
+            total = row_total[0]
+            cur_snap = await conn.execute("SELECT COUNT(*) FROM snapshots")
+            row_snap = await cur_snap.fetchone()
+            snap = row_snap[0]
+            cur_types = await conn.execute(
                 "SELECT event_type, COUNT(*) as cnt FROM events GROUP BY event_type ORDER BY cnt DESC"
-            ).fetchall()
+            )
+            rows_types = await cur_types.fetchall()
 
         return {
             "total_events": total,
             "total_snapshots": snap,
-            "events_by_type": dict(types),
+            "events_by_type": dict(rows_types),
             "active_projections": len(self._projections),
             "db_path": str(self.db_path),
             "db_size_bytes": self.db_path.stat().st_size if self.db_path.exists() else 0,
