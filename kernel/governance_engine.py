@@ -290,4 +290,5 @@ class GovernanceEngine:
             with LOG_PATH.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
         except OSError:
-            pass
+            import logging
+            logging.getLogger("doutor.governance").warning("Governance log write failed")

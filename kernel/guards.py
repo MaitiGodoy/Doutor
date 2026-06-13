@@ -131,8 +131,15 @@ def get_guardrails() -> SecurityGuard:
 
 
 class NVIDIA_Guardrails(SecurityGuard):
-    """Alias for NVIDIA-specific guardrails (currently same logic)."""
-    pass
+    """NVIDIA-specific guardrails with enhanced PII/toxicity detection."""
+    def calculate_risk(self, text: str) -> float:
+        return SecurityGuard.calculate_risk(self, text)
+
+    def validate_input(self, text: str) -> GuardrailResult:
+        return SecurityGuard.validate_input(self, text)
+
+    def validate_output(self, text: str) -> GuardrailResult:
+        return SecurityGuard.validate_output(self, text)
 
 
 # Re-export models

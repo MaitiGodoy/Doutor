@@ -484,7 +484,8 @@ class LateralAgent(BaseAgent):
                         "patch_hint": (issue.get("code", "") or "")[:100]
                     })
         except Exception:
-            pass
+            import logging
+            logging.getLogger("doutor.lateral").warning("Safety check failed", exc_info=True)
         return findings
 
     def _run_safety(self, target_abs: Path) -> List[Dict]:
@@ -512,7 +513,8 @@ class LateralAgent(BaseAgent):
                         "patch_hint": f"pip install {vuln.get('package_name')}=={vuln.get('fixed_version', '')}"
                     })
         except Exception:
-            pass
+            import logging
+            logging.getLogger("doutor.lateral").warning("Safety check failed", exc_info=True)
         return findings
 
     # ─── 5 ACTIVE REMEDIATIONS ──────────────────────────────────────

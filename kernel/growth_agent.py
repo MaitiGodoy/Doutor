@@ -68,7 +68,7 @@ Focus on digital marketing, SaaS, and online business trends.
                     result["hermes_insights"] = hermes_analysis.get("response", {})
                     logger.info(f"Hermes contribuiu na análise de mercado: {niche}")
                 except Exception:
-                    pass
+                    logger.warning("Hermes market analysis failed", exc_info=True)
 
             logger.info(f"Market analysis completed for niche: {niche}")
             return {"status": "ok", "data": result}
